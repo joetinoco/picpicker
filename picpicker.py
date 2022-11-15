@@ -10,10 +10,14 @@ files = []
 ## Internal functions
 
 def log(msg, *others):
-    if len(others) > 0:
-        print(datetime.datetime.now(), msg, " ".join(others))
+    if len(others) == 0:
+        print(datetime.datetime.now(), str(msg))
     else:
-        print(datetime.datetime.now(), msg)
+        strOthers = ""
+        for other in others:
+            strOthers = strOthers + str(other)
+        print(datetime.datetime.now(), str(msg) + strOthers)
+        
 
 def abort(msg, *others):
     log(msg, others)
@@ -49,9 +53,26 @@ def parseConfig():
     
 # Get all eligible files from a path
 def collectEligibleFiles(path, selector):
-    eligibleFiles = glob.iglob(path + selector)
-    for fileItem in eligibleFiles:
-        log('Found eligible file -', fileItem)
+    log('Scanning source path: ', path + selector)
+    eligibleFilesIterator = glob.iglob(path + selector)
+    eligibleFiles = list(eligibleFilesIterator)
+    log('Found ', str(len(eligibleFiles)), ' potential files')
+    return eligibleFiles
+
+# Apply exclusion rules to eligibleFiles and returns a new list with them filtered out
+def applyExcludes(eligibleFiles, pathsToExclude):
+    def isExcluded(file):
+        for path in pathsToExclude:
+            if path in file:
+                return True
+        return False
+
+    filteredFiles = []
+    filteredFiles[:] = [file for file in eligibleFiles if not isExcluded(file)]
+    log('Excluded ', len (eligibleFiles) - len(filteredFiles), ' files using the "exclude" patterns')
+    return filteredFiles
+
+
 
 ################################################################################
 ################################################################################
@@ -59,17 +80,17 @@ def collectEligibleFiles(path, selector):
 
 parseConfig()
 
-# Collect all eligible files from sources
+# Process sources
 for sourceName in sources:
     log('Processing source:', sourceName)
     source = sources[sourceName]
     log('Path for source: ', source['path'])
-    collectEligibleFiles(source['path'], source['filePattern'])
 
+    eligibleFiles = collectEligibleFiles(source['path'], source['filePattern'])
 
-# Process 'excludes'
+    eligibleFiles = applyExcludes(eligibleFiles, source['exclude'])
 
-# Process 'ensures'
+#    applyEnsures(eligibleFiles, source['ensure'])
 
 # Make a selection to fill the maxSize
 

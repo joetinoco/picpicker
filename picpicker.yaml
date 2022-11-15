@@ -1,9 +1,9 @@
 sources:
   'My Pictures':
-    path: 'D:\pictest'
+    path: 'D:/pictest'
     filePattern: '/**/*.jpg'
     exclude: 
-      - '2002_08_31 Aniversário do Sam'
+      - '2002_08_18 Aniv. Dani'
     ensure:
       - 10 '#Celular'
       - 5% '2022-10 Pumpkin farm visit'
