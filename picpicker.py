@@ -67,8 +67,7 @@ def applyExcludes(eligibleFiles, pathsToExclude):
                 return True
         return False
 
-    filteredFiles = []
-    filteredFiles[:] = [file for file in eligibleFiles if not isExcluded(file)]
+    filteredFiles = [file for file in eligibleFiles if not isExcluded(file)]
     log('Excluded ', len (eligibleFiles) - len(filteredFiles), ' files using the "exclude" patterns')
     return filteredFiles
 
@@ -82,15 +81,16 @@ parseConfig()
 
 # Process sources
 for sourceName in sources:
-    log('Processing source:', sourceName)
+    log('Processing source: ', sourceName)
     source = sources[sourceName]
-    log('Path for source: ', source['path'])
 
     eligibleFiles = collectEligibleFiles(source['path'], source['filePattern'])
 
     eligibleFiles = applyExcludes(eligibleFiles, source['exclude'])
 
-#    applyEnsures(eligibleFiles, source['ensure'])
+#    files = pickRequred(eligibleFiles, source['ensure'])
+
+#    pickRandoms(files, eligibleFiles)
 
 # Make a selection to fill the maxSize
 
