@@ -1,12 +1,14 @@
-source:
-  path: 'D:\pictest'
-  includeSubdirs: true
-  exclude: 
-    - '2002_08_31 Aniversário do Sam'
-  ensure:
-    - 10 '#Celular'
-    - 5% '2022-10 Pumpkin farm visit'
+sources:
+  'My Pictures':
+    path: 'D:\pictest'
+    filePattern: '/**/*.jpg'
+    exclude: 
+      - '2002_08_31 Aniversário do Sam'
+    ensure:
+      - 10 '#Celular'
+      - 5% '2022-10 Pumpkin farm visit'
 
 target:
   path: 'D:\pickedpics'
+  maxSize: 1024 # in megabytes
   randomizeNames: true

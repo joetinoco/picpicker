@@ -2,7 +2,9 @@ import datetime, sys, glob, re, shutil, os.path, time, yaml
 
 ###########################
 ## Globals
-config = {}
+sources = []
+target = {}
+files = []
 
 ###########################
 ## Internal functions
@@ -13,41 +15,62 @@ def log(msg, *others):
     else:
         print(datetime.datetime.now(), msg)
 
+def abort(msg, *others):
+    log(msg, others)
+    log('Error is fatal, aborting.')
+    exit(1)
+
 # Parse and validate configuration
 def parseConfig():
+    global sources
+    global target
     with open("picpicker.yaml", "r") as configfile:
         try:
             config = yaml.safe_load(configfile)
             log('Config file loaded.')
-            yaml.dump(config)
         except yaml.YAMLError as exc:
-            log('Error loading picpicker.yaml', exc)
-            exit(1)
+            abort('Error loading picpicker.yaml', exc)
+
+    # Validate target    
+    if 'target' not in config.keys():
+        abort("Config file has no 'target' specified.")
     
-def ensureDestPathExists(path):
-    pathElems = path.split("\\")[1:]
-    currPath = ""
-    for pathElem in pathElems:
-        currPath += "\\" + pathElem
-        if os.path.isdir(currPath) == False:
-            log('Destination path does not exist; creating ', currPath)
-            os.mkdir(currPath)
+    target = config['target']
+    if 'path' not in target.keys():
+        abort('Target configs are missing a destination path.')
+    if not os.path.isdir(target['path']):
+        log('Destination path does not exist; creating ', target['path'])
+        os.mkdir(target['path'])        
+
+    if 'sources' not in config.keys():
+        abort("Config file has no 'sources' specified.")
+
+    sources = config['sources']
     
-# Get files and archive them in their respective year-month\day path
-def processFiles(path, selector, dest):
-    files = glob.iglob(path + selector)
-    for fileItem in files:
-        fileName = fileItem[len(path) + 1:] # Strip path from filename
-        destPath = dest + "\\" + getYearMonth(fileName) + "\\" + getDay(fileName)
-        ensureDestPathExists(destPath)
-        try:
-            shutil.move(fileItem, destPath)
-        except:
-            log("Error moving", fileName)
-        log(fileName, "archived.")
+# Get all eligible files from a path
+def collectEligibleFiles(path, selector):
+    eligibleFiles = glob.iglob(path + selector)
+    for fileItem in eligibleFiles:
+        log('Found eligible file -', fileItem)
 
 ################################################################################
 ################################################################################
 ################################################################################
 
 parseConfig()
+
+# Collect all eligible files from sources
+for sourceName in sources:
+    log('Processing source:', sourceName)
+    source = sources[sourceName]
+    log('Path for source: ', source['path'])
+    collectEligibleFiles(source['path'], source['filePattern'])
+
+
+# Process 'excludes'
+
+# Process 'ensures'
+
+# Make a selection to fill the maxSize
+
+# Copy the selection to the target folder
