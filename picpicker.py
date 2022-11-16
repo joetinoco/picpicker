@@ -61,7 +61,6 @@ def parseConfig():
 # Calculate an absolute count of files to be picked,
 # by parsing/validating a string and then applying 
 # the value or percentage to a total amount.
-# Also adjusts the amount if it's greater then the available picks.
 # Returns -1 if the amount cannot be calculated.
 def parsePickCountString(amountString, available):
     if available == 0:
@@ -101,9 +100,8 @@ def pickByRule(eligibleFiles, rule):
         pickCount = len(matchIndexes)
 
     if pickCount < 0:
-        log('Warning - cannot ensure ', rule['count'], ' files matching pattern "', rule['pattern'], '", check if the files/directories really exist.')
+        log('Warning - cannot pick ', rule['count'], ' files matching pattern "', rule['pattern'], '", check if the files/directories really exist.')
     else:
-        log('Ensuring ', pickCount, ' of ', len(matchIndexes),' files that match pattern "', rule['pattern'], '"')
         while pickCount > 0:
             pickIndex = randomPickFrom(matchIndexes)
             pickedFiles.append(eligibleFiles[pickIndex])
@@ -117,6 +115,7 @@ def pickRequired(eligibleFiles, ensureRules):
     pickedFiles = []
     for ruleString in ensureRules:
         rule = parseRule(ruleString)
+        log('Ensuring at least ', rule['count'], ' files that match pattern "', rule['pattern'], '"')
         pickedFiles += pickByRule(eligibleFiles, rule)
     return pickedFiles    
     
@@ -128,11 +127,23 @@ def collectAvailableFiles(path, selector):
     log('Found ', str(len(availableFiles)), ' potential files')
     return availableFiles
 
-# Apply exclusion rules to eligibleFiles and returns a new list with them filtered out
+# Apply exclusion rules to available files and returns a new list with them filtered out
 def applyExcludes(availableFiles, pathsToExclude):
     eligibleFiles = [file for file in availableFiles if not anyMatches(file, pathsToExclude)]
-    log('Excluded ', len(availableFiles) - len(eligibleFiles), ' files using the "exclude" patterns')
     return eligibleFiles
+
+# Apply limit rules to eligibleFiles and returns a new list with them filtered out
+def applyLimits(eligibleFiles, limitRules):
+    limitedFiles = []
+    for ruleString in limitRules:
+        rule = parseRule(ruleString)
+        limitedFiles += pickByRule(eligibleFiles, rule)
+        # Remove all files with the rule pattern
+        applyExcludes(eligibleFiles, rule['pattern'])
+        # Re-add just the limited subset
+        eligibleFiles += limitedFiles
+        log('Limiting to a maximum of ', len(limitedFiles), ' files matching pattern "', rule['pattern'], '"')
+    return eligibleFiles 
 
 # Copy all files from the list to the target folder.
 # Returns the total bytes copied.
@@ -157,6 +168,9 @@ for sourceName in sources:
     availableFiles = collectAvailableFiles(source['path'], source['filePattern'])
 
     eligibleFiles = applyExcludes(availableFiles, source['exclude'])
+    log('Excluded ', len(availableFiles) - len(eligibleFiles),' files via exclusion patterns.')
+
+    eligibleFiles = applyLimits(eligibleFiles, source['limit'])
 
     requiredFiles = pickRequired(eligibleFiles, source['ensure'])
 
@@ -171,4 +185,4 @@ for sourceName in sources:
         byteCount += copyFiles([randomPickFrom(eligibleFiles)])
         fileCount += 1
     
-    log('Copied a total of ', fileCount, ' files (', str(byteCount / (1024*1024)), ' MB)')
+    log('Copied a total of ', fileCount, ' files (', str(int(byteCount / (1024*1024))), ' MB)')

@@ -4,11 +4,12 @@ sources:
     filePattern: '/**/*.jpg'
     exclude: 
       - '2002_08_18 Aniv. Dani'
+    limit:
+      - 5% '2022-10 Pumpkin farm visit'      
     ensure:
-      - 5% '2022-10 Pumpkin farm visit'
       - 10 '#Celular'
       - 12 'this does not exist'
 
 target:
   path: 'D:\pickedpics'
-  maxSize: 1024 # in megabytes
+  maxSize: 20 # in megabytes
