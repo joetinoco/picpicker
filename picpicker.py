@@ -101,8 +101,14 @@ def pickByRule(eligibleFiles, rule):
     if pickCount < 0:
         log('Warning - cannot ensure ', rule['count'], ' files matching pattern "', rule['pattern'], '", check if the files/directories really exist.')
     else:
-        log('Picking ', pickCount, ' of ', len(matchIndexes),' files that match pattern "', rule['pattern'], '"')
-    
+        log('Ensuring ', pickCount, ' of ', len(matchIndexes),' files that match pattern "', rule['pattern'], '"')
+        matchIndexes.sort(reverse=True)
+        i = 0
+        while i < pickCount:
+            pickedFiles.append(eligibleFiles[matchIndexes[i]])
+            eligibleFiles.pop(matchIndexes[i])
+            i += 1
+  
     return pickedFiles
     
 # Get all eligible files from a path
@@ -124,8 +130,7 @@ def pickRequired(eligibleFiles, ensureRules):
     pickedFiles = []
     for ruleString in ensureRules:
         rule = parseRule(ruleString)
-        pickedFiles.append(pickByRule(eligibleFiles, rule))
-    # TODO remove picked files from the list of eligible files
+        pickedFiles += pickByRule(eligibleFiles, rule)
     return pickedFiles
 
 
@@ -144,7 +149,9 @@ for sourceName in sources:
 
     eligibleFiles = applyExcludes(availableFiles, source['exclude'])
 
-    pickedFiles.append(pickRequired(eligibleFiles, source['ensure']))
+    pickedFiles += pickRequired(eligibleFiles, source['ensure'])
+
+    log('Picked a total of ', len(pickedFiles), ' required files.')
 
 #    pickRandoms(selectedFiles, filteredEligibleFiles)
 
