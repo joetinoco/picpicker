@@ -24,6 +24,10 @@ def abort(msg, *others):
     log('Error is fatal, aborting.')
     exit(1)
 
+# Convert a byte number into a nicely formated MB string
+def toMbString(bytes):
+    return str(int(bytes / (1024*1024))) + " MB"
+
 # Matches a string against several patterns, returns True if it contains any of them
 def anyMatches(string, patterns):
     for pattern in patterns:
@@ -124,26 +128,24 @@ def collectAvailableFiles(path, selector):
     log('Scanning source path: ', path + selector)
     availableFilesIterator = glob.iglob(path + selector, recursive=True)
     availableFiles = list(availableFilesIterator)
-    log('Found ', str(len(availableFiles)), ' potential files')
     return availableFiles
 
-# Apply exclusion rules to available files and returns a new list with them filtered out
-def applyExcludes(availableFiles, pathsToExclude):
-    eligibleFiles = [file for file in availableFiles if not anyMatches(file, pathsToExclude)]
-    return eligibleFiles
+# Apply exclusion rules to available files
+def applyExcludes(fileList, pathsToExclude):
+    excludedFiles = [file for file in fileList if anyMatches(file, pathsToExclude)]
+    for exclusion in excludedFiles:
+        fileList.remove(exclusion)
 
-# Apply limit rules to eligibleFiles and returns a new list with them filtered out
-def applyLimits(eligibleFiles, limitRules):
-    limitedFiles = []
+# Apply limit rules to eligibleFiles and returns the list with them filtered out
+def applyLimits(fileList, limitRules):
     for ruleString in limitRules:
         rule = parseRule(ruleString)
-        limitedFiles += pickByRule(eligibleFiles, rule)
+        limitedPicks = pickByRule(fileList, rule)
         # Remove all files with the rule pattern
-        applyExcludes(eligibleFiles, rule['pattern'])
+        applyExcludes(fileList, [rule['pattern']])
         # Re-add just the limited subset
-        eligibleFiles += limitedFiles
-        log('Limiting to a maximum of ', len(limitedFiles), ' files matching pattern "', rule['pattern'], '"')
-    return eligibleFiles 
+        fileList += limitedPicks
+        log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
 # Copy all files from the list to the target folder.
 # Returns the total bytes copied.
@@ -159,30 +161,40 @@ def copyFiles(fileList):
 ################################################################################
 
 parseConfig()
-
+byteCount = 0
 # Process sources
 for sourceName in sources:
     log('Processing source: ', sourceName)
     source = sources[sourceName]
 
     availableFiles = collectAvailableFiles(source['path'], source['filePattern'])
+    log('Potential file count: ', len(availableFiles))
 
-    eligibleFiles = applyExcludes(availableFiles, source['exclude'])
-    log('Excluded ', len(availableFiles) - len(eligibleFiles),' files via exclusion patterns.')
+    applyExcludes(availableFiles, source['exclude'])
+    log('Excluded files via exclusion patterns.')
+    log('Potential file count: ', len(availableFiles))
 
-    eligibleFiles = applyLimits(eligibleFiles, source['limit'])
+    applyLimits(availableFiles, source['limit'])
+    log('Potential file count: ', len(availableFiles))
 
-    requiredFiles = pickRequired(eligibleFiles, source['ensure'])
+    requiredFiles = pickRequired(availableFiles, source['ensure'])
+    log('Potential file count: ', len(availableFiles))
 
     fileCount = len(requiredFiles)
-    log('Picked a total of ', fileCount, ' required files.')
+    requiredByteCount = copyFiles(requiredFiles)
+    byteCount += requiredByteCount
+    log('Picked a total of ', fileCount, ' required files (', toMbString(requiredByteCount),').')
 
+byteCountCap = target['maxSize'] * (1024*1024)
+if (byteCount > byteCountCap):
+    log('Warning: required files exceed the maximum size for the target directory.')
+else:
     log('Filling the rest of the target folder with random picks (up to ', target['maxSize'], ' MB)')
-
-    byteCount = copyFiles(requiredFiles)
-    byteCountCap = target['maxSize'] * (1024*1024)
     while byteCount < byteCountCap:
-        byteCount += copyFiles([randomPickFrom(eligibleFiles)])
+        if len(availableFiles) == 0:
+            log('Warning - not enough files to fill out target folder.')
+            break
+        byteCount += copyFiles([randomPickFrom(availableFiles)])
         fileCount += 1
     
-    log('Copied a total of ', fileCount, ' files (', str(int(byteCount / (1024*1024))), ' MB)')
+log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')

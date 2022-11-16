@@ -5,11 +5,11 @@ sources:
     exclude: 
       - '2002_08_18 Aniv. Dani'
     limit:
-      - 5% '2022-10 Pumpkin farm visit'      
+      - 10 'Celular'
     ensure:
-      - 10 '#Celular'
+      - 10 '2022-10 Pumpkin farm visit'
       - 12 'this does not exist'
 
 target:
   path: 'D:\pickedpics'
-  maxSize: 20 # in megabytes
+  maxSize: 100 # in megabytes
