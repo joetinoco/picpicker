@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, shutil, os.path, time, yaml, re
+import datetime, sys, glob, re, shutil, os.path, time, yaml, re, random
 
 ###########################
 ## Globals
@@ -67,16 +67,10 @@ def parseConfig():
 def parsePickCountString(amountString, available):
     if available == 0:
         return -1
-
     if '%' in amountString:
         pickCount = int((int(amountString.replace('%','')) / 100 ) * available)
     else:
         pickCount = int(amountString)
-
-    if pickCount > available:
-        log('Warning - not enough matches available, will pick as much as possible')
-        pickCount = available
-    
     return pickCount
 
 # Parse "ensure" rules. They have the format: <number> '<pattern>',
@@ -88,6 +82,13 @@ def parseRule(ruleString):
     rule['pattern'] = ruleParts.group(2)
     return rule
 
+# Pick a random item from a list and remove it from the list
+def randomPickFrom(list):
+    pick = random.choice(list)
+    list.remove(pick)
+    return pick
+
+
 # Pick files from the eligible files list according to a pick rule
 def pickByRule(eligibleFiles, rule):
     pickedFiles = []
@@ -97,16 +98,19 @@ def pickByRule(eligibleFiles, rule):
             matchIndexes.append(i)
 
     pickCount = parsePickCountString(rule['count'], len(matchIndexes))
+    if pickCount > len(matchIndexes):
+        log('Warning - not enough matches available for pattern "', rule['pattern'], '", will pick as much as possible')
+        pickCount = len(matchIndexes)
 
     if pickCount < 0:
         log('Warning - cannot ensure ', rule['count'], ' files matching pattern "', rule['pattern'], '", check if the files/directories really exist.')
     else:
         log('Ensuring ', pickCount, ' of ', len(matchIndexes),' files that match pattern "', rule['pattern'], '"')
-        matchIndexes.sort(reverse=True)
         i = 0
         while i < pickCount:
-            pickedFiles.append(eligibleFiles[matchIndexes[i]])
-            eligibleFiles.pop(matchIndexes[i])
+            pickIndex = randomPickFrom(matchIndexes)
+            pickedFiles.append(eligibleFiles[pickIndex])
+            eligibleFiles.pop(pickIndex)
             i += 1
   
     return pickedFiles
@@ -153,8 +157,7 @@ for sourceName in sources:
 
     log('Picked a total of ', len(pickedFiles), ' required files.')
 
-#    pickRandoms(selectedFiles, filteredEligibleFiles)
-
-# Make a selection to fill the maxSize
+     # Make a selection to fill the maxSize
+#    pickedFiles += pickRandoms(eligibleFiles, maxSize)
 
 # Copy the selection to the target folder
