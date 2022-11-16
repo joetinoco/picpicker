@@ -1,5 +1,15 @@
 import datetime, sys, glob, re, shutil, os.path, yaml, re, random
 
+# Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
+from yaml import Loader, SafeLoader
+
+def construct_yaml_str(self, node):
+    # Override the default string handling function 
+    # to always return unicode objects
+    return self.construct_scalar(node)
+Loader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
+SafeLoader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
+
 ###########################
 ## Globals
 sources = []
@@ -152,8 +162,11 @@ def applyLimits(fileList, limitRules):
 def copyFiles(fileList):
     bytes = 0
     for file in fileList:
-        bytes += os.stat(file).st_size
-        shutil.copy2(file, target['path'])
+        try:
+            shutil.copy2(file, target['path'])
+            bytes += os.stat(file).st_size
+        except Exception as ex:
+            log('Error copying ', file,' - ', str(ex))
     return bytes
 
 ################################################################################
