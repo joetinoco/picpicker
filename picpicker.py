@@ -9,6 +9,7 @@ files = []
 ###########################
 ## Internal functions
 
+# Simple logger
 def log(msg, *others):
     if len(others) == 0:
         print(datetime.datetime.now(), str(msg))
@@ -18,11 +19,18 @@ def log(msg, *others):
             strOthers = strOthers + str(other)
         print(datetime.datetime.now(), str(msg) + strOthers)
         
-
+# Log an error and quit program
 def abort(msg, *others):
     log(msg, others)
     log('Error is fatal, aborting.')
     exit(1)
+
+# Matches a string against several patterns, returns True if it contains any of them
+def anyMatches(string, patterns):
+    for pattern in patterns:
+        if pattern in string:
+            return True
+    return False
 
 # Parse and validate configuration
 def parseConfig():
@@ -61,13 +69,7 @@ def collectEligibleFiles(path, selector):
 
 # Apply exclusion rules to eligibleFiles and returns a new list with them filtered out
 def applyExcludes(eligibleFiles, pathsToExclude):
-    def isExcluded(file):
-        for path in pathsToExclude:
-            if path in file:
-                return True
-        return False
-
-    filteredFiles = [file for file in eligibleFiles if not isExcluded(file)]
+    filteredFiles = [file for file in eligibleFiles if anyMatches(file, pathsToExclude)]
     log('Excluded ', len (eligibleFiles) - len(filteredFiles), ' files using the "exclude" patterns')
     return filteredFiles
 
@@ -88,7 +90,7 @@ for sourceName in sources:
 
     eligibleFiles = applyExcludes(eligibleFiles, source['exclude'])
 
-#    files = pickRequred(eligibleFiles, source['ensure'])
+#    files = pickRequired(eligibleFiles, source['ensure'])
 
 #    pickRandoms(files, eligibleFiles)
 
