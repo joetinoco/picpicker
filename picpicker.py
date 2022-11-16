@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, shutil, os.path, time, yaml, re, random
+import datetime, sys, glob, re, shutil, os.path, yaml, re, random
 
 ###########################
 ## Globals
@@ -36,15 +36,15 @@ def anyMatches(string, patterns):
     return False
 
 # Parse and validate configuration
-def parseConfig():
+def parseConfig(configFilePath):
     global sources
     global target
-    with open("picpicker.yaml", "r") as configfile:
+    with open(configFilePath, "r") as configfile:
         try:
             config = yaml.safe_load(configfile)
-            log('Config file loaded.')
+            log('Using config file - ', configFilePath)
         except yaml.YAMLError as exc:
-            abort('Error loading picpicker.yaml', exc)
+            abort('Error loading config file.', exc)
 
     # Validate target    
     if 'target' not in config.keys():
@@ -160,8 +160,12 @@ def copyFiles(fileList):
 ################################################################################
 ################################################################################
 
-parseConfig()
+if len(sys.argv) < 2:
+    abort("Missing config file path. Usage: picpicker <config.yaml>")
+
+parseConfig(sys.argv[1])
 byteCount = 0
+
 # Process sources
 for sourceName in sources:
     log('Processing source: ', sourceName)
