@@ -12,4 +12,3 @@ sources:
 target:
   path: 'D:\pickedpics'
   maxSize: 1024 # in megabytes
-  randomizeNames: true

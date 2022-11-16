@@ -4,7 +4,6 @@ import datetime, sys, glob, re, shutil, os.path, time, yaml, re, random
 ## Globals
 sources = []
 target = {}
-pickedFiles = []
 
 ###########################
 ## Internal functions
@@ -88,7 +87,6 @@ def randomPickFrom(list):
     list.remove(pick)
     return pick
 
-
 # Pick files from the eligible files list according to a pick rule
 def pickByRule(eligibleFiles, rule):
     pickedFiles = []
@@ -106,14 +104,21 @@ def pickByRule(eligibleFiles, rule):
         log('Warning - cannot ensure ', rule['count'], ' files matching pattern "', rule['pattern'], '", check if the files/directories really exist.')
     else:
         log('Ensuring ', pickCount, ' of ', len(matchIndexes),' files that match pattern "', rule['pattern'], '"')
-        i = 0
-        while i < pickCount:
+        while pickCount > 0:
             pickIndex = randomPickFrom(matchIndexes)
             pickedFiles.append(eligibleFiles[pickIndex])
             eligibleFiles.pop(pickIndex)
-            i += 1
+            pickCount -= 1
   
     return pickedFiles
+
+# Return all files matching the "ensure" rules
+def pickRequired(eligibleFiles, ensureRules):
+    pickedFiles = []
+    for ruleString in ensureRules:
+        rule = parseRule(ruleString)
+        pickedFiles += pickByRule(eligibleFiles, rule)
+    return pickedFiles    
     
 # Get all eligible files from a path
 def collectAvailableFiles(path, selector):
@@ -129,14 +134,14 @@ def applyExcludes(availableFiles, pathsToExclude):
     log('Excluded ', len(availableFiles) - len(eligibleFiles), ' files using the "exclude" patterns')
     return eligibleFiles
 
-# Return all files matching the "ensure" rules
-def pickRequired(eligibleFiles, ensureRules):
-    pickedFiles = []
-    for ruleString in ensureRules:
-        rule = parseRule(ruleString)
-        pickedFiles += pickByRule(eligibleFiles, rule)
-    return pickedFiles
-
+# Copy all files from the list to the target folder.
+# Returns the total bytes copied.
+def copyFiles(fileList):
+    bytes = 0
+    for file in fileList:
+        bytes += os.stat(file).st_size
+        shutil.copy2(file, target['path'])
+    return bytes
 
 ################################################################################
 ################################################################################
@@ -153,11 +158,17 @@ for sourceName in sources:
 
     eligibleFiles = applyExcludes(availableFiles, source['exclude'])
 
-    pickedFiles += pickRequired(eligibleFiles, source['ensure'])
+    requiredFiles = pickRequired(eligibleFiles, source['ensure'])
 
-    log('Picked a total of ', len(pickedFiles), ' required files.')
+    fileCount = len(requiredFiles)
+    log('Picked a total of ', fileCount, ' required files.')
 
-     # Make a selection to fill the maxSize
-#    pickedFiles += pickRandoms(eligibleFiles, maxSize)
+    log('Filling the rest of the target folder with random picks (up to ', target['maxSize'], ' MB)')
 
-# Copy the selection to the target folder
+    byteCount = copyFiles(requiredFiles)
+    byteCountCap = target['maxSize'] * (1024*1024)
+    while byteCount < byteCountCap:
+        byteCount += copyFiles([randomPickFrom(eligibleFiles)])
+        fileCount += 1
+    
+    log('Copied a total of ', fileCount, ' files (', str(byteCount / (1024*1024)), ' MB)')
