@@ -1,10 +1,10 @@
-import datetime, sys, glob, re, shutil, os.path, time, yaml
+import datetime, sys, glob, re, shutil, os.path, time, yaml, re
 
 ###########################
 ## Globals
 sources = []
 target = {}
-files = []
+pickedFiles = []
 
 ###########################
 ## Internal functions
@@ -58,21 +58,41 @@ def parseConfig():
         abort("Config file has no 'sources' specified.")
 
     sources = config['sources']
+
+# Parse "ensure" rules. They have the format: <number> '<pattern>',
+# where <number> can be an absolute amount (2, 7, etc.) or a percentage
+def parseRule(ruleString):
+    rule = {}
+    ruleParts = re.search('^([0-9]+%?)\s\'(.+)\'$', ruleString)
+    rule['count'] = ruleParts.group(1)
+    rule['pattern'] = ruleParts.group(2)
+    return rule
+
+def pickByRule(eligibleFiles, rule):
+    log('Picking ', rule['count'], ' files that match the pattern "', rule['pattern'], '"')
     
 # Get all eligible files from a path
-def collectEligibleFiles(path, selector):
+def collectAvailableFiles(path, selector):
     log('Scanning source path: ', path + selector)
-    eligibleFilesIterator = glob.iglob(path + selector)
-    eligibleFiles = list(eligibleFilesIterator)
-    log('Found ', str(len(eligibleFiles)), ' potential files')
-    return eligibleFiles
+    availableFilesIterator = glob.iglob(path + selector)
+    availableFiles = list(availableFilesIterator)
+    log('Found ', str(len(availableFiles)), ' potential files')
+    return availableFiles
 
 # Apply exclusion rules to eligibleFiles and returns a new list with them filtered out
-def applyExcludes(eligibleFiles, pathsToExclude):
-    filteredFiles = [file for file in eligibleFiles if anyMatches(file, pathsToExclude)]
-    log('Excluded ', len (eligibleFiles) - len(filteredFiles), ' files using the "exclude" patterns')
-    return filteredFiles
+def applyExcludes(availableFiles, pathsToExclude):
+    eligibleFiles = [file for file in availableFiles if anyMatches(file, pathsToExclude)]
+    log('Excluded ', len (availableFiles) - len(eligibleFiles), ' files using the "exclude" patterns')
+    return eligibleFiles
 
+# Return all files matching the "ensure" rules
+def pickRequired(eligibleFiles, ensureRules):
+    pickedFiles = []
+    for ruleString in ensureRules:
+        rule = parseRule(ruleString)
+        pickedFiles.append(pickByRule(eligibleFiles, rule))
+    # TODO remove picked files from the list of eligible files
+    return pickedFiles
 
 
 ################################################################################
@@ -86,13 +106,13 @@ for sourceName in sources:
     log('Processing source: ', sourceName)
     source = sources[sourceName]
 
-    eligibleFiles = collectEligibleFiles(source['path'], source['filePattern'])
+    availableFiles = collectAvailableFiles(source['path'], source['filePattern'])
 
-    eligibleFiles = applyExcludes(eligibleFiles, source['exclude'])
+    eligibleFiles = applyExcludes(availableFiles, source['exclude'])
 
-#    files = pickRequired(eligibleFiles, source['ensure'])
+    pickedFiles.append(pickRequired(eligibleFiles, source['ensure']))
 
-#    pickRandoms(files, eligibleFiles)
+#    pickRandoms(selectedFiles, filteredEligibleFiles)
 
 # Make a selection to fill the maxSize
 
