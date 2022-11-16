@@ -7,6 +7,7 @@ sources:
     ensure:
       - 10 '#Celular'
       - 5% '2022-10 Pumpkin farm visit'
+      - 12 'this does not exist'
 
 target:
   path: 'D:\pickedpics'

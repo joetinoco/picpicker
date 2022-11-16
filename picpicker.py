@@ -59,6 +59,26 @@ def parseConfig():
 
     sources = config['sources']
 
+# Calculate an absolute count of files to be picked,
+# by parsing/validating a string and then applying 
+# the value or percentage to a total amount.
+# Also adjusts the amount if it's greater then the available picks.
+# Returns -1 if the amount cannot be calculated.
+def parsePickCountString(amountString, available):
+    if available == 0:
+        return -1
+
+    if '%' in amountString:
+        pickCount = int((int(amountString.replace('%','')) / 100 ) * available)
+    else:
+        pickCount = int(amountString)
+
+    if pickCount > available:
+        log('Warning - not enough matches available, will pick as much as possible')
+        pickCount = available
+    
+    return pickCount
+
 # Parse "ensure" rules. They have the format: <number> '<pattern>',
 # where <number> can be an absolute amount (2, 7, etc.) or a percentage
 def parseRule(ruleString):
@@ -68,21 +88,35 @@ def parseRule(ruleString):
     rule['pattern'] = ruleParts.group(2)
     return rule
 
+# Pick files from the eligible files list according to a pick rule
 def pickByRule(eligibleFiles, rule):
-    log('Picking ', rule['count'], ' files that match the pattern "', rule['pattern'], '"')
+    pickedFiles = []
+    matchIndexes = []
+    for i in range(len(eligibleFiles)):
+        if anyMatches(eligibleFiles[i], [rule['pattern']]):
+            matchIndexes.append(i)
+
+    pickCount = parsePickCountString(rule['count'], len(matchIndexes))
+
+    if pickCount < 0:
+        log('Warning - cannot ensure ', rule['count'], ' files matching pattern "', rule['pattern'], '", check if the files/directories really exist.')
+    else:
+        log('Picking ', pickCount, ' of ', len(matchIndexes),' files that match pattern "', rule['pattern'], '"')
+    
+    return pickedFiles
     
 # Get all eligible files from a path
 def collectAvailableFiles(path, selector):
     log('Scanning source path: ', path + selector)
-    availableFilesIterator = glob.iglob(path + selector)
+    availableFilesIterator = glob.iglob(path + selector, recursive=True)
     availableFiles = list(availableFilesIterator)
     log('Found ', str(len(availableFiles)), ' potential files')
     return availableFiles
 
 # Apply exclusion rules to eligibleFiles and returns a new list with them filtered out
 def applyExcludes(availableFiles, pathsToExclude):
-    eligibleFiles = [file for file in availableFiles if anyMatches(file, pathsToExclude)]
-    log('Excluded ', len (availableFiles) - len(eligibleFiles), ' files using the "exclude" patterns')
+    eligibleFiles = [file for file in availableFiles if not anyMatches(file, pathsToExclude)]
+    log('Excluded ', len(availableFiles) - len(eligibleFiles), ' files using the "exclude" patterns')
     return eligibleFiles
 
 # Return all files matching the "ensure" rules
