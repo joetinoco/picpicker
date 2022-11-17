@@ -176,7 +176,6 @@ def resizeAndCopyFiles(fileList):
             .filter('scale', -1, int(target['maxHeight']))
             .output(targetFile, loglevel="quiet")
             .run('./ffmpeg/ffmpeg'))
-            #shutil.copy2(sourceFile, targetFile)
             bytes += os.stat(targetFile).st_size
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
