@@ -1,5 +1,5 @@
 import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ffmpeg, PIL
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFont, ImageDraw
 
 # Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
 from yaml import Loader, SafeLoader
@@ -49,6 +49,20 @@ def anyMatches(string, patterns):
         if pattern in string:
             return True
     return False    
+
+# Derives a label text from a file path
+def getLabelText(file):
+    sourcePaths = []
+    for source in sources:
+        sourcePaths.append(sources[source]['path'])
+    dirname = os.path.dirname(file)
+    for path in sourcePaths:
+        dirname = (
+            dirname.replace(path, '')
+            .replace('//', ' - ')
+            .replace('/', ' - ')
+            .replace('\\', ' - '))
+    return dirname[3:]
 
 # Parse and validate configuration
 def parseConfig(configFilePath):
@@ -163,6 +177,20 @@ def applyLimits(fileList, limitRules):
         fileList += limitedPicks
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
+# Draw text over an image
+def drawText(image, text, x, y):
+    labelFont = ImageFont.truetype("fonts/roboto-mono.ttf", 16)
+    draw = ImageDraw.Draw(image)
+    # Draw a 1px black shading around the text location
+    draw.text((x+1, y), text,(0,0,0),font=labelFont)
+    draw.text((x-1, y), text,(0,0,0),font=labelFont)
+    draw.text((x, y+1), text,(0,0,0),font=labelFont)
+    draw.text((x, y-1), text,(0,0,0),font=labelFont)
+    draw.text((x+1, y+1), text,(0,0,0),font=labelFont)
+    draw.text((x-1, y-1), text,(0,0,0),font=labelFont)
+    # Draw the actual text
+    draw.text((x, y), text,(255,255,255),font=labelFont)
+
 # Copy all files from the list to the target folder.
 # The destination file names are randomized, and
 # the files are resized to the desired resolution.
@@ -177,6 +205,8 @@ def resizeAndCopyFiles(fileList):
             targetFile = target['path'] + randomFileName(fileExt)
             image = ImageOps.exif_transpose(Image.open(sourceFile)) # Apply EXIF orientation
             image.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
+            if target['applyLabel']:
+                drawText(image, getLabelText(sourceFile), 3, maxHeight - 30)
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
         except Exception as ex:

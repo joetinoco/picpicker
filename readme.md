@@ -9,6 +9,7 @@ Features:
 - Specify files/directories to ignore
 - Specify files/directories to always include
 - Limit the amount of files picked from specific directories - if you have baby pictures you know how important this is
+- Embed (optional) text onto pictures from the file location e.g. files from `/vacation/paris 2022` will be labeled "vacation - paris 2022"
 
 ## Pre-requisites
 

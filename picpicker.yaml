@@ -55,3 +55,9 @@ target:
   # Set how many megabytes of pictures you want selected here.
   # Useful when you have a limited capacity USB stick/SD card.
   maxSize: 100
+
+  # If set to "True", apply text to the pictures with the file
+  # location, e.g. files from `/Vacation/Paris 2022` will be
+  # labeled "Vacation - Paris 2022".
+  # Note that the source base path is automatically excluded.
+  applyLabel: True
