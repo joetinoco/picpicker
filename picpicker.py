@@ -123,8 +123,9 @@ def pickByRule(eligibleFiles, rule):
         while pickCount > 0:
             pickIndex = randomPickFrom(matchIndexes)
             pickedFiles.append(eligibleFiles[pickIndex])
-            eligibleFiles.pop(pickIndex)
             pickCount -= 1
+        for pickedFile in pickedFiles:
+            eligibleFiles.remove(pickedFile)
   
     return pickedFiles
 
@@ -175,6 +176,7 @@ def resizeAndCopyFiles(fileList):
             .input(sourceFile)
             .filter('scale', -1, int(target['maxHeight']))
             .output(targetFile, loglevel="quiet")
+            #.output(targetFile, format="libx264rgb")
             .run('./ffmpeg/ffmpeg'))
             bytes += os.stat(targetFile).st_size
         except Exception as ex:
