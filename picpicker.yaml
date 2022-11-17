@@ -46,9 +46,10 @@ target:
   path: 'D:\pickedpics'
   
   # As most cheap digital picture frames have low resolution,
-  # you can set the screen height in pixels here, and all
+  # you can set the screen width/height in pixels here, and all
   # photos will be resized to this height. Aspect ratio and
   # picture orientation are preserved.
+  maxWidth: 1024
   maxHeight: 600
 
   # Set how many megabytes of pictures you want selected here.

@@ -14,7 +14,6 @@ Features:
 
 - Instal Python 3
 - Install required packages via `pip`
-- Download the [ffmpeg](https://ffmpeg.org/download.html) executable for your platform and put it in the `ffmpeg` directory
 
 ## Configuration file
 

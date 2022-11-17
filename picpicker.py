@@ -1,4 +1,5 @@
-import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ffmpeg
+import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ffmpeg, PIL
+from PIL import Image, ImageOps
 
 # Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
 from yaml import Loader, SafeLoader
@@ -167,17 +168,16 @@ def applyLimits(fileList, limitRules):
 # the files are resized to the desired resolution.
 # Returns the total bytes copied.
 def resizeAndCopyFiles(fileList):
+    maxWidth = int(target['maxWidth'])
+    maxHeight = int(target['maxHeight'])
     bytes = 0
     for sourceFile in fileList:
         try:
             fileName, fileExt = os.path.splitext(sourceFile)
             targetFile = target['path'] + randomFileName(fileExt)
-            (ffmpeg
-            .input(sourceFile)
-            .filter('scale', -1, int(target['maxHeight']))
-            .output(targetFile, loglevel="quiet")
-            #.output(targetFile, format="libx264rgb")
-            .run('./ffmpeg/ffmpeg'))
+            image = ImageOps.exif_transpose(Image.open(sourceFile)) # Apply EXIF orientation
+            image.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
+            image.save(targetFile)
             bytes += os.stat(targetFile).st_size
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
