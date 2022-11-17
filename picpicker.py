@@ -157,7 +157,9 @@ def pickRequired(eligibleFiles, ensureRules):
 def collectAvailableFiles(path, selector):
     log('Scanning source path: ', path + selector)
     availableFilesIterator = glob.iglob(path + selector, recursive=True)
-    availableFiles = list(availableFilesIterator)
+    availableFiles = []
+    for filePath in availableFilesIterator:
+        availableFiles.append(filePath.replace('\\', '/'))
     return availableFiles
 
 # Apply exclusion rules to available files
