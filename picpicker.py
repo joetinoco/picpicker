@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ntpath
+import datetime, sys, glob, re, shutil, os.path, yaml, re, random
 
 # Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
 from yaml import Loader, SafeLoader
