@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, shutil, os.path, yaml, re, random
+import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ntpath
 
 # Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
 from yaml import Loader, SafeLoader
@@ -38,12 +38,16 @@ def abort(msg, *others):
 def toMbString(bytes):
     return str(int(bytes / (1024*1024))) + " MB"
 
+# Return a random file name with the given extension
+def randomFileName(extension):
+    return '/' + str(random.randint(0,999999999)).zfill(9) + extension
+
 # Matches a string against several patterns, returns True if it contains any of them
 def anyMatches(string, patterns):
     for pattern in patterns:
         if pattern in string:
             return True
-    return False
+    return False    
 
 # Parse and validate configuration
 def parseConfig(configFilePath):
@@ -158,15 +162,18 @@ def applyLimits(fileList, limitRules):
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
 # Copy all files from the list to the target folder.
+# The destination file names are randomized.
 # Returns the total bytes copied.
 def copyFiles(fileList):
     bytes = 0
-    for file in fileList:
+    for sourceFile in fileList:
         try:
-            shutil.copy2(file, target['path'])
-            bytes += os.stat(file).st_size
+            fileName, fileExt = os.path.splitext(sourceFile)
+            targetFile = target['path'] + randomFileName(fileExt)
+            shutil.copy2(sourceFile, targetFile)
+            bytes += os.stat(targetFile).st_size
         except Exception as ex:
-            log('Error copying ', file,' - ', str(ex))
+            log('Error copying ', sourceFile,' - ', str(ex))
     return bytes
 
 ################################################################################

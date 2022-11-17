@@ -6,6 +6,7 @@ sources:
       - '2002_08_18 Aniv. Dani'
     limit:
       - 10 'Celular'
+      - 15 '2002_08_31 Aniversário do Sam'
     ensure:
       - 10 '2022-10 Pumpkin farm visit'
       - 12 'this does not exist'
