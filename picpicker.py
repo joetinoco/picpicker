@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, shutil, os.path, yaml, re, random
+import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ffmpeg
 
 # Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
 from yaml import Loader, SafeLoader
@@ -162,15 +162,21 @@ def applyLimits(fileList, limitRules):
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
 # Copy all files from the list to the target folder.
-# The destination file names are randomized.
+# The destination file names are randomized, and
+# the files are resized to the desired resolution.
 # Returns the total bytes copied.
-def copyFiles(fileList):
+def resizeAndCopyFiles(fileList):
     bytes = 0
     for sourceFile in fileList:
         try:
             fileName, fileExt = os.path.splitext(sourceFile)
             targetFile = target['path'] + randomFileName(fileExt)
-            shutil.copy2(sourceFile, targetFile)
+            (ffmpeg
+            .input(sourceFile)
+            .filter('scale', -1, int(target['maxHeight']))
+            .output(targetFile, loglevel="quiet")
+            .run('./ffmpeg/ffmpeg'))
+            #shutil.copy2(sourceFile, targetFile)
             bytes += os.stat(targetFile).st_size
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
@@ -205,7 +211,7 @@ for sourceName in sources:
     log('Potential file count: ', len(availableFiles))
 
     fileCount = len(requiredFiles)
-    requiredByteCount = copyFiles(requiredFiles)
+    requiredByteCount = resizeAndCopyFiles(requiredFiles)
     byteCount += requiredByteCount
     log('Picked a total of ', fileCount, ' required files (', toMbString(requiredByteCount),').')
 
@@ -218,7 +224,7 @@ else:
         if len(availableFiles) == 0:
             log('Warning - not enough files to fill out target folder.')
             break
-        byteCount += copyFiles([randomPickFrom(availableFiles)])
+        byteCount += resizeAndCopyFiles([randomPickFrom(availableFiles)])
         fileCount += 1
     
 log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')

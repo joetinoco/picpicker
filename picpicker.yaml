@@ -14,5 +14,5 @@ sources:
 target:
   path: 'D:\pickedpics'
   maxSize: 100       # in megabytes
-  capWidth: 1024     
-  capHeight: 600
+  maxWidth: 1024     
+  maxHeight: 600
