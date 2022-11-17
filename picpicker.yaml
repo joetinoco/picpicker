@@ -1,17 +1,56 @@
+# PicPicker accepts one or more sources
+# i.e. places where you have pictures you want to
+# include in your selection
 sources:
+  
+  # Give each source a name
   'My Pictures':
-    path: 'D:/pictest'
+    
+    # Specify the base path where your pictures are stored.
+    # It can be in Windows or Unix format, and you can use 
+    # forward slashes even on Windows.
+    path: 'D:/mypictures' 
+    
+    # File pattern accepts Globs, the extended Unix style 
+    # pathname extension.
+    # Reference: https://www.malikbrowne.com/blog/a-beginners-guide-glob-patterns
+    # Patterns are applied recursively, i.e. the example below picks
+    # all JPG files in all directories and every subdirectory
     filePattern: '/**/*.jpg'
-    exclude: 
-      - '2002_08_18 Aniv. Dani'
-    limit:
-      - 10 'Celular'
-      - 15 '2002_08_31 Aniversário do Sam'
-    ensure:
-      - 10 '2022-10 Pumpkin farm visit'
-      - 12 'this does not exist'
 
+    # Any file/directory name containing the text indicated here 
+    # will be entirely excluded from the final selection
+    exclude: 
+      - 'drunken-karaoke'
+
+    # To limit the amount of files picked from a directory
+    # (e.g. you want a maximum of 10 files from the 'baby pictures' folder)
+    # indicate the number of files, or a percentage of the
+    # total files, to include, alongside the directory name.
+    limit:
+      - 10 'baby-pictures'
+      - 25% 'birthday-party'
+
+    # To always pick a minimum of files from a directory,
+    # indicate the number or percentage of files here.
+    # If you want all files from a directory, just use 100%.      
+    ensure:
+      - 10 'Pumpkin farm visit'
+      - 100% 'secret-santa'
+
+# Target is the destination directory where your picks
+# will be copied to.
+# All file names WILL be changed to a random number; this
+# is to ensure pictures are always shown in a random order
 target:
   path: 'D:\pickedpics'
-  maxSize: 100       # in megabytes
+  
+  # As most cheap digital picture frames have low resolution,
+  # you can set the screen height in pixels here, and all
+  # photos will be resized to this height. Aspect ratio and
+  # picture orientation are preserved.
   maxHeight: 600
+
+  # Set how many megabytes of pictures you want selected here.
+  # Useful when you have a limited capacity USB stick/SD card.
+  maxSize: 100

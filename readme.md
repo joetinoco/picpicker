@@ -3,7 +3,7 @@
 Got one of those digital picture frames, but don't want to go through all your gigabytes of pictures to make a selection for it? Let PicPicker do it for you automagically.
 
 Features:
-- Automatically resize pictures to your picture frame resolution,preserving the original aspect ratio
+- Automatically resize pictures to your picture frame resolution, preserving the original aspect ratio
 - Auto-picks as many pictures as your target USB drive/SD card can fit
 - Randomize file names (and display order)
 - Specify files/directories to ignore
@@ -18,7 +18,7 @@ Features:
 
 ## Configuration file
 
-PicPicker expects a configuration file in yaml format, with at least one source directory to pick pictures and a target to put the result. Refer to [picpicker.yaml] for a documented example of all possible options and create your own.
+PicPicker expects a configuration file in yaml format, with at least one source directory to pick pictures and a target to put the result. Refer to [picpicker.yaml](picpicker.yaml) for a documented example of all possible options and create your own.
 
 ## Running the script
 
