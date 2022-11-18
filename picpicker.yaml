@@ -47,7 +47,7 @@ sources:
 # All file names WILL be changed to a random number; this
 # is to ensure pictures are always shown in a random order
 target:
-  path: 'D:\pickedpics'
+  path: 'D:/pickedpics'
   
   # As most cheap digital picture frames have low resolution,
   # you can set the screen width/height in pixels here, and all
