@@ -1,6 +1,9 @@
 # PicPicker accepts one or more sources
 # i.e. places where you have pictures you want to
-# include in your selection
+# include in your selection.
+#
+# All params are mandatory unless stated otherwise.
+# They can be blank/empty, but must be specified.
 sources:
   
   # Give each source a name
@@ -48,17 +51,26 @@ target:
   
   # As most cheap digital picture frames have low resolution,
   # you can set the screen width/height in pixels here, and all
-  # photos will be resized to this height. Aspect ratio and
+  # photos will be resized to this size. Aspect ratio and
   # picture orientation are preserved.
   maxWidth: 1024
   maxHeight: 600
 
+  # OPTIONAL configuration settings
+  # ======================================
+
   # Set how many megabytes of pictures you want selected here.
   # Useful when you have a limited capacity USB stick/SD card.
-  maxSize: 100
+  maxMegabytes: 100
+
+  # If you have too many pictures, or too much storage, you can
+  # set a maximum amount of files to copy. 
+  # This may be necessary as FAT32 volumes won't accept more than
+  # 64K files in a single directory.
+  maxFiles: 40
 
   # If set to "True", apply text to the pictures with the file
   # location, e.g. files from `/Vacation/Paris 2022` will be
   # labeled "Vacation - Paris 2022".
-  # Note that the source base path is automatically excluded.
+  # Note that the source base path is not included.
   applyLabel: True

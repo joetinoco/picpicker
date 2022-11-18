@@ -31,7 +31,7 @@ def toMbString(bytes):
 
 # Return a random file name with the given extension
 def randomFileName(extension):
-    return '/' + str(random.randint(0,999999999)).zfill(9) + extension
+    return '/' + str(random.randint(0,99999999)).zfill(8) + extension
 
 # Matches a string against several patterns, returns True if it contains any of them
 def anyMatches(string, patterns):
@@ -72,9 +72,11 @@ def parseConfig(configFilePath):
     target = config['target']
     if 'path' not in target.keys():
         abort('Target configs are missing a destination path.')
+    if 'applyLabel' not in target.keys():        
+        target['applyLabel'] = False
     if not os.path.isdir(target['path']):
         log('Destination path does not exist; creating ', target['path'])
-        os.mkdir(target['path'])        
+        os.mkdir(target['path'])
 
     if 'sources' not in config.keys():
         abort("Config file has no 'sources' specified.")
@@ -205,6 +207,21 @@ def resizeAndCopyFiles(fileList):
             log('Error copying ', sourceFile,' - ', str(ex))
     return bytes
 
+# Check if the amount of bytes is under the byte size cap for the target directory.
+# Always returns True if there's no cap.
+def isUnderByteSizeCap(bytes):
+    if 'maxMegabytes' not in target.keys():
+        return True
+    byteCountCap = target['maxMegabytes'] * (1024*1024)
+    return bytes < byteCountCap
+
+# Check if the amount of files is under the file count cap for the target directory.
+# Always returns True if there's no cap.
+def isUnderFileCountCap(fileCount):
+    if 'maxFiles' not in target.keys():
+        return True
+    return fileCount < target['maxFiles']
+
 ################################################################################
 ################################################################################
 ################################################################################
@@ -238,12 +255,16 @@ for sourceName in sources:
     byteCount += requiredByteCount
     log('Picked a total of ', fileCount, ' required files (', toMbString(requiredByteCount),').')
 
-byteCountCap = target['maxSize'] * (1024*1024)
-if (byteCount > byteCountCap):
-    log('Warning: required files exceed the maximum size for the target directory.')
+byteCountCap = target['maxMegabytes'] * (1024*1024)
+if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
+    log('Warning: required files already exceed the limits set for the target directory.')
 else:
-    log('Filling the rest of the target folder with random picks (up to ', target['maxSize'], ' MB)')
-    while byteCount < byteCountCap:
+    log('Filling the rest of the target folder with random picks.')
+    if 'maxMegabytes' in target.keys():
+        log('Will copy up to ', target['maxMegabytes'], ' MB.')
+    if 'maxFiles' in target.keys():
+        log('Will copy up to ', target['maxFiles'], ' files.')        
+    while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
         if len(availableFiles) == 0:
             log('Warning - not enough files to fill out target folder.')
             break
