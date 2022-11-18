@@ -72,8 +72,6 @@ def parseConfig(configFilePath):
     target = config['target']
     if 'path' not in target.keys():
         abort('Target configs are missing a destination path.')
-    if 'applyLabel' not in target.keys():        
-        target['applyLabel'] = False
     if not os.path.isdir(target['path']):
         log('Destination path does not exist; creating ', target['path'])
         os.mkdir(target['path'])
@@ -82,6 +80,14 @@ def parseConfig(configFilePath):
         abort("Config file has no 'sources' specified.")
 
     sources = config['sources']
+
+# Returns a target config value if it's set, and 'False' otherwise.
+# Used for optional boolean flags.
+def optionalConfigSet(name):
+    if (name in target.keys()):
+        return target[name]
+    else:
+        return False
 
 # Calculate an absolute count of files to be picked,
 # by parsing/validating a string and then applying 
@@ -154,11 +160,13 @@ def collectAvailableFiles(path, selector):
         availableFiles.append(filePath.replace('\\', '/'))
     return availableFiles
 
-# Apply exclusion rules to available files
+# Apply exclusion rules to available files.
+# Return the number of excluded files.
 def applyExcludes(fileList, pathsToExclude):
     excludedFiles = [file for file in fileList if anyMatches(file, pathsToExclude)]
     for exclusion in excludedFiles:
         fileList.remove(exclusion)
+    return len(excludedFiles)
 
 # Apply limit rules to eligibleFiles and returns the list with them filtered out
 def applyLimits(fileList, limitRules):
@@ -199,7 +207,7 @@ def resizeAndCopyFiles(fileList):
             targetFile = target['path'] + randomFileName(fileExt)
             image = ImageOps.exif_transpose(Image.open(sourceFile)) # Apply EXIF orientation
             image.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
-            if target['applyLabel']:
+            if optionalConfigSet('applyLabel'):
                 drawText(image, getLabelText(sourceFile), 3, maxHeight - 30)
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
@@ -232,6 +240,11 @@ if len(sys.argv) < 2:
 parseConfig(sys.argv[1])
 byteCount = 0
 
+if optionalConfigSet('wipeTarget'):
+    log('Wiping target directory "', target['path'], '" before starting.')
+    for file in glob.glob(target['path'] + '/*'):
+        os.remove(file)
+
 # Process sources
 for sourceName in sources:
     log('Processing source: ', sourceName)
@@ -240,22 +253,19 @@ for sourceName in sources:
     availableFiles = collectAvailableFiles(source['path'], source['filePattern'])
     log('Potential file count: ', len(availableFiles))
 
-    applyExcludes(availableFiles, source['exclude'])
-    log('Excluded files via exclusion patterns.')
-    log('Potential file count: ', len(availableFiles))
+    excludedCount = applyExcludes(availableFiles, source['exclude'])
+    log('Excluded ', excludedCount, ' files via exclusion patterns.')
 
     applyLimits(availableFiles, source['limit'])
-    log('Potential file count: ', len(availableFiles))
 
     requiredFiles = pickRequired(availableFiles, source['ensure'])
-    log('Potential file count: ', len(availableFiles))
+    log('Remaining files available to be picked: ', len(availableFiles))
 
     fileCount = len(requiredFiles)
     requiredByteCount = resizeAndCopyFiles(requiredFiles)
     byteCount += requiredByteCount
-    log('Picked a total of ', fileCount, ' required files (', toMbString(requiredByteCount),').')
+    log('Included a total of ', fileCount, ' required files (', toMbString(requiredByteCount),').')
 
-byteCountCap = target['maxMegabytes'] * (1024*1024)
 if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
     log('Warning: required files already exceed the limits set for the target directory.')
 else:
@@ -266,7 +276,6 @@ else:
         log('Will copy up to ', target['maxFiles'], ' files.')        
     while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
         if len(availableFiles) == 0:
-            log('Warning - not enough files to fill out target folder.')
             break
         byteCount += resizeAndCopyFiles([randomPickFrom(availableFiles)])
         fileCount += 1
