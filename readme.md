@@ -27,4 +27,3 @@ Simply run it with `python picpicker.py <your_config.yml>`
 ## Limitations, TODOs
 
 - The script assumes you'll always see your pictures in landscape mode and scales them for this use case only
-- files/directories with Unicode characters (accents, etc) are not correctly evaluated by the file filters

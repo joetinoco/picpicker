@@ -35,6 +35,7 @@ sources:
     # indicate the number or percentage of files here.
     # If you want all files from a directory, just use 100%.      
     ensure:
+      - 1 'séance centre'
       - 10 'Pumpkin farm visit'
       - 100% 'secret-santa'
 

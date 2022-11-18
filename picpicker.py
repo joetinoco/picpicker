@@ -1,15 +1,5 @@
-import datetime, sys, glob, re, shutil, os.path, yaml, re, random, ffmpeg, PIL
+import datetime, sys, glob, re, os.path, yaml, re, random
 from PIL import Image, ImageOps, ImageFont, ImageDraw
-
-# Fix for Unicode strings in yaml - https://stackoverflow.com/a/2967461
-from yaml import Loader, SafeLoader
-
-def construct_yaml_str(self, node):
-    # Override the default string handling function 
-    # to always return unicode objects
-    return self.construct_scalar(node)
-Loader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
-SafeLoader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
 
 ###########################
 ## Globals
@@ -110,7 +100,7 @@ def parseRule(ruleString):
     rule = {}
     ruleParts = re.search('^([0-9]+%?)\s\'(.+)\'$', ruleString)
     rule['count'] = ruleParts.group(1)
-    rule['pattern'] = ruleParts.group(2)
+    rule['pattern'] = ruleParts.group(2).encode('cp1252').decode('utf8')
     return rule
 
 # Pick a random item from a list and remove it from the list
