@@ -5,12 +5,17 @@ from PIL import Image, ImageOps, ImageFont, ImageDraw
 ## Globals
 sources = []
 target = {}
+crlfMissing = False # Used as a flag for logging
 
 ###########################
 ## Internal functions
 
 # Simple logger
 def log(msg, *others):
+    global crlfMissing
+    if crlfMissing:
+        print('')
+        crlfMissing = False
     if len(others) == 0:
         print(datetime.datetime.now(), str(msg))
     else:
@@ -18,6 +23,14 @@ def log(msg, *others):
         for other in others:
             strOthers = strOthers + str(other)
         print(datetime.datetime.now(), str(msg) + strOthers)
+
+# Logs without adding a newline. Used for progress messages.
+def logProgress(msg):
+    global crlfMissing
+    crlfMissing = True
+    fillSize = os.get_terminal_size().columns - 28 - len(str(msg))
+    filler = ' ' * fillSize
+    print(datetime.datetime.now(), str(msg), end=filler + '\r')
         
 # Log an error and quit program
 def abort(msg, *others):
@@ -211,6 +224,7 @@ def resizeAndCopyFiles(fileList):
                 drawText(image, getLabelText(sourceFile), 3, maxHeight - 30)
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
+            logProgress('Copied ' + sourceFile + ' to ' + targetFile)
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
     return bytes
