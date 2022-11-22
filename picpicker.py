@@ -203,6 +203,8 @@ def drawText(image, text, x, y):
     draw.text((x, y-1), text,(0,0,0),font=labelFont)
     draw.text((x+1, y+1), text,(0,0,0),font=labelFont)
     draw.text((x-1, y-1), text,(0,0,0),font=labelFont)
+    draw.text((x+1, y-1), text,(0,0,0),font=labelFont)
+    draw.text((x-1, y+1), text,(0,0,0),font=labelFont)
     # Draw the actual text
     draw.text((x, y), text,(255,255,255),font=labelFont)
 
@@ -220,8 +222,9 @@ def resizeAndCopyFiles(fileList):
             targetFile = target['path'] + randomFileName(fileExt)
             image = ImageOps.exif_transpose(Image.open(sourceFile)) # Apply EXIF orientation
             image.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
+            newWidth, newHeight = image.size
             if optionalConfigSet('applyLabel'):
-                drawText(image, getLabelText(sourceFile), 3, maxHeight - 30)
+                drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
             logProgress('Copied ' + sourceFile + ' to ' + targetFile)

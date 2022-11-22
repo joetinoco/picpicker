@@ -50,9 +50,8 @@ target:
   path: 'D:/pickedpics'
   
   # As most cheap digital picture frames have low resolution,
-  # you can set the screen width/height in pixels here, and all
-  # photos will be resized to this size. Aspect ratio and
-  # picture orientation are preserved.
+  # set the screen width/height in pixels here, so that
+  # photos can be resized accordingly.
   maxWidth: 1024
   maxHeight: 600
 
@@ -69,8 +68,8 @@ target:
   # 64K files in a single directory.
   maxFiles: 40
 
-  # Apply text to the pictures with the file
-  # location, e.g. files from `/Vacation/Paris 2022` will be
+  # Apply text to the pictures with the file location,
+  # e.g. files from `/Vacation/Paris 2022` will be
   # labeled "Vacation - Paris 2022".
   # Note that the source base path is not included.
   applyLabel: True
