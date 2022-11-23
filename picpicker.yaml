@@ -60,8 +60,8 @@ target:
 
   # Crop images to fill the picture width.
   # This prevents "black bars" on the edges if the image
-  # is not wide enough for the frame.
-  # Applies ONLY to portrait-oriented pictures
+  # does not have the exact aspect ratio of the frame screen.
+  # Applies ONLY to landscape-oriented pictures
   cropToFill: True
 
   # Set how many megabytes of pictures you want selected here.

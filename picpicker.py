@@ -201,18 +201,17 @@ def getPreparedImage(sourceFile):
 
     # Get current image size and orientation
     currWidth, currHeight = image.size
-    aspectRatio = currWidth / currHeight
-    portrait = True
+    landscape = True
     if (currWidth < currHeight):
-        portrait = False
-        aspectRatio = currHeight / currWidth
+        landscape = False
 
     resizedImg = image.copy()
     resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
+    image = resizedImg # Defaults to "naive" resizing (assumes same aspect ratio of the picture frame)
 
-    if portrait & optionalConfigSet('cropToFill'):
+    if landscape & optionalConfigSet('cropToFill'):
         (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
-        if boxWidth < maxWidth: 
+        if boxWidth < maxWidth:
             # Black bars on the sides, clip vertically
             proportionalHeight = int(maxHeight * (maxWidth / boxWidth))
             heightGap = int((proportionalHeight - maxHeight) / 2)
@@ -228,10 +227,6 @@ def getPreparedImage(sourceFile):
                 widthGap -= 1
             newImage = image.resize((proportionalWidth, maxHeight))
             image = newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
-        else: # Nothing else to fix, use the resized image
-            image = resizedImg
-    else:
-        image = resizedImg
 
     newWidth, newHeight = image.size
     if optionalConfigSet('applyLabel'):
