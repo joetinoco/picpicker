@@ -192,8 +192,9 @@ def applyLimits(fileList, limitRules):
         fileList += limitedPicks
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
-# Resize image according to the aspect ratio/sizing constraints
-def getSizedImage(sourceFile):
+# Get the source image with the size according to any aspect ratio/sizing constraints
+# and with label text applied, if the user wants any
+def getPreparedImage(sourceFile):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
     image = ImageOps.exif_transpose(Image.open(sourceFile))
@@ -208,17 +209,29 @@ def getSizedImage(sourceFile):
 
     resizedImg = image.copy()
     resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
-    (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
-    
+
     if portrait & optionalConfigSet('cropToFill'):
-        proportionalHeight = int(maxHeight * aspectRatio)
-        heightGap = int((proportionalHeight - maxHeight) / 2)
-        newImage = image.resize((maxWidth, proportionalHeight))
-        image = newImage.crop((0, heightGap, maxWidth, heightGap + maxHeight))
+        (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
+        if boxWidth < maxWidth: 
+            # Black bars on the sides, clip vertically
+            proportionalHeight = int(maxHeight * (maxWidth / boxWidth))
+            heightGap = int((proportionalHeight - maxHeight) / 2)
+            if heightGap % 2 == 1:
+                heightGap -= 1
+            newImage = image.resize((maxWidth, proportionalHeight))
+            image = newImage.crop((0, heightGap, maxWidth, maxHeight + heightGap))
+        elif boxHeight < maxHeight: 
+            # Black bars on the top/bottom, clip horizontally
+            proportionalWidth = int(maxWidth * (maxHeight / boxHeight))
+            widthGap = int((proportionalWidth - maxWidth) / 2)
+            if widthGap % 2 == 1:
+                widthGap -= 1
+            newImage = image.resize((proportionalWidth, maxHeight))
+            image = newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
+        else: # Nothing else to fix, use the resized image
+            image = resizedImg
     else:
         image = resizedImg
-
-    image = resizedImg;                
 
     newWidth, newHeight = image.size
     if optionalConfigSet('applyLabel'):
@@ -253,7 +266,7 @@ def resizeAndCopyFiles(fileList):
             fileName, fileExt = os.path.splitext(sourceFile)
             targetFile = target['path'] + randomFileName(fileExt)
 
-            image = getSizedImage(sourceFile)
+            image = getPreparedImage(sourceFile)
             
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size

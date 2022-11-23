@@ -61,7 +61,8 @@ target:
   # Crop images to fill the picture width.
   # This prevents "black bars" on the edges if the image
   # is not wide enough for the frame.
-  #cropToFill: True
+  # Applies ONLY to portrait-oriented pictures
+  cropToFill: True
 
   # Set how many megabytes of pictures you want selected here.
   # Useful when you have a limited capacity USB stick/SD card.
