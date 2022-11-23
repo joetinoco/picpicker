@@ -38,7 +38,7 @@ sources:
     # indicate the number or percentage of files here.
     # If you want all files from a directory, just use 100%.      
     ensure:
-      - 1 'séance centre'
+      - 4 'séance centre'
       - 10 'Pumpkin farm visit'
       - 100% 'secret-santa'
 
@@ -53,10 +53,15 @@ target:
   # set the screen width/height in pixels here, so that
   # photos can be resized accordingly.
   maxWidth: 1024
-  maxHeight: 600
+  maxHeight: 600 
 
   # OPTIONAL configuration settings
   # ======================================
+
+  # Crop images to fill the picture width.
+  # This prevents "black bars" on the edges if the image
+  # is not wide enough for the frame.
+  #cropToFill: True
 
   # Set how many megabytes of pictures you want selected here.
   # Useful when you have a limited capacity USB stick/SD card.

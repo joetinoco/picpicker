@@ -192,6 +192,40 @@ def applyLimits(fileList, limitRules):
         fileList += limitedPicks
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
+# Resize image according to the aspect ratio/sizing constraints
+def getSizedImage(sourceFile):
+    maxWidth = int(target['maxWidth'])
+    maxHeight = int(target['maxHeight'])
+    image = ImageOps.exif_transpose(Image.open(sourceFile))
+
+    # Get current image size and orientation
+    currWidth, currHeight = image.size
+    aspectRatio = currWidth / currHeight
+    portrait = True
+    if (currWidth < currHeight):
+        portrait = False
+        aspectRatio = currHeight / currWidth
+
+    resizedImg = image.copy()
+    resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
+    (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
+    
+    if portrait & optionalConfigSet('cropToFill'):
+        proportionalHeight = int(maxHeight * aspectRatio)
+        heightGap = int((proportionalHeight - maxHeight) / 2)
+        newImage = image.resize((maxWidth, proportionalHeight))
+        image = newImage.crop((0, heightGap, maxWidth, heightGap + maxHeight))
+    else:
+        image = resizedImg
+
+    image = resizedImg;                
+
+    newWidth, newHeight = image.size
+    if optionalConfigSet('applyLabel'):
+        drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
+    
+    return image
+
 # Draw text over an image
 def drawText(image, text, x, y):
     labelFont = ImageFont.truetype("fonts/roboto-mono.ttf", 16)
@@ -213,18 +247,14 @@ def drawText(image, text, x, y):
 # the files are resized to the desired resolution.
 # Returns the total bytes copied.
 def resizeAndCopyFiles(fileList):
-    maxWidth = int(target['maxWidth'])
-    maxHeight = int(target['maxHeight'])
     bytes = 0
     for sourceFile in fileList:
         try:
             fileName, fileExt = os.path.splitext(sourceFile)
             targetFile = target['path'] + randomFileName(fileExt)
-            image = ImageOps.exif_transpose(Image.open(sourceFile)) # Apply EXIF orientation
-            image.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
-            newWidth, newHeight = image.size
-            if optionalConfigSet('applyLabel'):
-                drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
+
+            image = getSizedImage(sourceFile)
+            
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
             logProgress('Copied ' + sourceFile + ' to ' + targetFile)
