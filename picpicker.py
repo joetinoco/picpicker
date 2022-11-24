@@ -6,6 +6,7 @@ from PIL import Image, ImageOps, ImageFont, ImageDraw
 sources = []
 target = {}
 crlfMissing = False # Used as a flag for logging
+portraitBuffer = None # Used by the `twoPortraits` flag
 
 ###########################
 ## Internal functions
@@ -193,16 +194,20 @@ def applyLimits(fileList, limitRules):
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
 # Get the source image with the size according to any aspect ratio/sizing constraints
-# and with label text applied, if the user wants any
+# and with label text applied, if the user wants any.
+# Returns an image, or "None" if the `twoPortraits` flag is selected and an image was instead stacked inside (see code).
 def getPreparedImage(sourceFile):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
+    global portraitBuffer
     image = ImageOps.exif_transpose(Image.open(sourceFile))
 
     # Get current image size and orientation
     currWidth, currHeight = image.size
     landscape = True
+    portrait = False
     if (currWidth < currHeight):
+        portrait = True
         landscape = False
 
     resizedImg = image.copy()
@@ -231,6 +236,24 @@ def getPreparedImage(sourceFile):
     newWidth, newHeight = image.size
     if optionalConfigSet('applyLabel'):
         drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
+
+    # The 'two portraits' functionality works like this:
+    # First, a portrait image is stored in the portraitBuffer, and
+    # then, when a second one comes by, it's merged with the one previously
+    # stored.
+    if portrait & optionalConfigSet('twoPortraits'):
+        if portraitBuffer == None:
+            portraitBuffer = image
+            return None
+        else:
+            bufferWidth, bufferHeight = portraitBuffer.size
+            twoPortraits = Image.new('RGB', (maxWidth, maxHeight))
+            img1XAnchor = int(((maxWidth / 2) - (bufferWidth)) / 2)
+            img2XAnchor = int(maxWidth/2) + int(((maxWidth / 2) - (newWidth)) / 2)
+            twoPortraits.paste(portraitBuffer, (img1XAnchor, 0))
+            twoPortraits.paste(image, (img2XAnchor, 0))
+            image = twoPortraits
+            portraitBuffer = None        
     
     return image
 
@@ -253,7 +276,7 @@ def drawText(image, text, x, y):
 # Copy all files from the list to the target folder.
 # The destination file names are randomized, and
 # the files are resized to the desired resolution.
-# Returns the total bytes copied.
+# Returns a tuple with the file count and the total bytes copied.
 def resizeAndCopyFiles(fileList):
     bytes = 0
     for sourceFile in fileList:
@@ -262,13 +285,16 @@ def resizeAndCopyFiles(fileList):
             targetFile = target['path'] + randomFileName(fileExt)
 
             image = getPreparedImage(sourceFile)
+
+            if image == None: # This can happen if an image was stacked to be merged later, see code
+                return (0, 0)
             
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
             logProgress('Copied ' + sourceFile + ' to ' + targetFile)
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
-    return bytes
+    return (1, bytes)
 
 # Check if the amount of bytes is under the byte size cap for the target directory.
 # Always returns True if there's no cap.
@@ -316,10 +342,8 @@ for sourceName in sources:
     requiredFiles = pickRequired(availableFiles, source['ensure'])
     log('Remaining files available to be picked: ', len(availableFiles))
 
-    fileCount = len(requiredFiles)
-    requiredByteCount = resizeAndCopyFiles(requiredFiles)
-    byteCount += requiredByteCount
-    log('Included a total of ', fileCount, ' required files (', toMbString(requiredByteCount),').')
+    (fileCount, byteCount) = resizeAndCopyFiles(requiredFiles)
+    log('Included a total of ', fileCount, ' required files (', toMbString(byteCount),').')
 
 if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
     log('Warning: required files already exceed the limits set for the target directory.')
@@ -332,7 +356,8 @@ else:
     while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
         if len(availableFiles) == 0:
             break
-        byteCount += resizeAndCopyFiles([randomPickFrom(availableFiles)])
-        fileCount += 1
+        (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(availableFiles)])
+        fileCount += addedFiles
+        byteCount += addedBytes
     
 log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')

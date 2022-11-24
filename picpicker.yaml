@@ -64,6 +64,9 @@ target:
   # Applies ONLY to landscape-oriented pictures
   cropToFill: True
 
+  # Merge two portrait images into one.
+  twoPortraits: True
+
   # Set how many megabytes of pictures you want selected here.
   # Useful when you have a limited capacity USB stick/SD card.
   maxMegabytes: 100
