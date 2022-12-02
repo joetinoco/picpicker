@@ -24,13 +24,15 @@ sources:
     # Any file/directory name containing the text indicated here 
     # will be entirely excluded from the final selection
     exclude: 
-      - 'drunken-karaoke'
+      - 'révéillon'
+      - 'drunken karaoke'
 
     # To limit the amount of files picked from a directory
     # (e.g. you want a maximum of 10 files from the 'baby pictures' folder)
     # indicate the number of files, or a percentage of the
     # total files, to include, alongside the directory name.
     limit:
+      - 1 'liquéur night'
       - 10 'baby-pictures'
       - 25% 'birthday-party'
 

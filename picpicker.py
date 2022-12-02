@@ -121,8 +121,12 @@ def parsePickCountString(amountString, available):
 def parseRule(ruleString):
     rule = {}
     ruleParts = re.search('^([0-9]+%?)\s\'(.+)\'$', ruleString)
-    rule['count'] = ruleParts.group(1)
-    rule['pattern'] = ruleParts.group(2).encode('cp1252').decode('utf8')
+    if ruleParts:
+        rule['count'] = ruleParts.group(1)
+        rule['pattern'] = ruleParts.group(2).encode('cp1252').decode('utf8') # Fix encoding
+    else:
+        # No count on the rule - just fix the encoding on the string
+        rule['pattern'] = ruleString.encode('cp1252').decode('utf8')
     return rule
 
 # Pick a random item from a list and remove it from the list
@@ -176,8 +180,11 @@ def collectAvailableFiles(path, selector):
 
 # Apply exclusion rules to available files.
 # Return the number of excluded files.
-def applyExcludes(fileList, pathsToExclude):
-    excludedFiles = [file for file in fileList if anyMatches(file, pathsToExclude)]
+def applyExcludes(fileList, exclusionPatterns):
+    exclusionRules = []
+    for exclusionPattern in exclusionPatterns:
+        exclusionRules.append(parseRule(exclusionPattern)['pattern'])
+    excludedFiles = [file for file in fileList if anyMatches(file, exclusionRules)]
     for exclusion in excludedFiles:
         fileList.remove(exclusion)
     return len(excludedFiles)
@@ -188,7 +195,7 @@ def applyLimits(fileList, limitRules):
         rule = parseRule(ruleString)
         limitedPicks = pickByRule(fileList, rule)
         # Remove all files with the rule pattern
-        applyExcludes(fileList, [rule['pattern']])
+        applyExcludes(fileList, [ruleString])
         # Re-add just the limited subset
         fileList += limitedPicks
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
