@@ -66,7 +66,8 @@ target:
   # Applies ONLY to landscape-oriented pictures
   cropToFill: True
 
-  # Merge two portrait images into one.
+  # Portrait images don't display well on landscape picture frames, so
+  # this option merges two portrait images into one in an artistic fashion.
   twoPortraits: True
 
   # Set how many megabytes of pictures you want selected here.

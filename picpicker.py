@@ -211,11 +211,8 @@ def getPreparedImage(sourceFile):
 
     # Get current image size and orientation
     currWidth, currHeight = image.size
-    landscape = True
-    portrait = False
-    if (currWidth < currHeight):
-        portrait = True
-        landscape = False
+    portrait = (currWidth < currHeight)
+    landscape = not portrait
 
     resizedImg = image.copy()
     resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
