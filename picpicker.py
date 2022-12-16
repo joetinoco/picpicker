@@ -221,21 +221,24 @@ def getPreparedImage(sourceFile):
         resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
         image = resizedImg # Defaults to "naive" resizing (assumes same aspect ratio of the picture frame)
 
-    newWidth, newHeight = image.size
-    if optionalConfigSet('applyLabel'):
-        drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
+
 
     # The 'two portraits' functionality works like this:
-    # First, a portrait image is stored in the portraitBuffer, and
+    # First, a portrait image and its label is stored in the portraitBuffer, and
     # then, when a second one comes by, it's merged with the one previously
     # stored.
     if portrait & optionalConfigSet('twoPortraits'):
         if portraitBuffer == None:
-            portraitBuffer = image
+            portraitBuffer = (image, getLabelText(sourceFile))
             return None
         else:
-            image = twoPortraits(image.copy(), portraitBuffer)
-            portraitBuffer = None        
+            (secondImage, secondLabel) = portraitBuffer
+            image = twoPortraits(image.copy(), secondImage, getLabelText(sourceFile), secondLabel)
+            portraitBuffer = None
+    else:
+        if optionalConfigSet('applyLabel'):
+            newWidth, newHeight = image.size
+            drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
     
     return image
 
@@ -279,16 +282,21 @@ def cropToFill(image, maxWidth, maxHeight):
         return newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
 
 # Merge two portrait images into a single image, side by side
-def twoPortraits(image1, image2):
+def twoPortraits(image1, image2, label1, label2):
+    dividerWidth = 10
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
-    img1Width, img1Height = image1.size
-    img2Width, img2Height = image2.size
+
+    img1crop = cropToFill(image1, int((maxWidth/2) - (dividerWidth/2)), maxHeight)
+    img2crop = cropToFill(image2, int((maxWidth/2) - (dividerWidth/2)), maxHeight)
+
+    if optionalConfigSet('applyLabel'):
+        drawText(img1crop, label1, 3, maxHeight - 30)
+        drawText(img2crop, label2, 3, maxHeight - 30)
+
     twoPortraits = Image.new('RGB', (maxWidth, maxHeight))
-    img1XAnchor = int(((maxWidth / 2) - img2Width) / 2)
-    img2XAnchor = int(maxWidth/2) + int(((maxWidth / 2) - img1Width) / 2)
-    twoPortraits.paste(image1, (img1XAnchor, 0))
-    twoPortraits.paste(image2, (img2XAnchor, 0))
+    twoPortraits.paste(img1crop, (0, 0))
+    twoPortraits.paste(img2crop, (int((maxWidth/2) + (dividerWidth/2)), 0))
     return twoPortraits
 
 # Copy all files from the list to the target folder.
