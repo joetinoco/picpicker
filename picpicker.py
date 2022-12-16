@@ -214,28 +214,12 @@ def getPreparedImage(sourceFile):
     portrait = (currWidth < currHeight)
     landscape = not portrait
 
-    resizedImg = image.copy()
-    resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
-    image = resizedImg # Defaults to "naive" resizing (assumes same aspect ratio of the picture frame)
-
     if landscape & optionalConfigSet('cropToFill'):
-        (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
-        if boxWidth < maxWidth:
-            # Black bars on the sides, clip vertically
-            proportionalHeight = int(maxHeight * (maxWidth / boxWidth))
-            heightGap = int((proportionalHeight - maxHeight) / 2)
-            if heightGap % 2 == 1:
-                heightGap -= 1
-            newImage = image.resize((maxWidth, proportionalHeight))
-            image = newImage.crop((0, heightGap, maxWidth, maxHeight + heightGap))
-        elif boxHeight < maxHeight: 
-            # Black bars on the top/bottom, clip horizontally
-            proportionalWidth = int(maxWidth * (maxHeight / boxHeight))
-            widthGap = int((proportionalWidth - maxWidth) / 2)
-            if widthGap % 2 == 1:
-                widthGap -= 1
-            newImage = image.resize((proportionalWidth, maxHeight))
-            image = newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
+        image = cropToFill(image.copy(), maxWidth, maxHeight)
+    else:
+        resizedImg = image.copy()
+        resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
+        image = resizedImg # Defaults to "naive" resizing (assumes same aspect ratio of the picture frame)
 
     newWidth, newHeight = image.size
     if optionalConfigSet('applyLabel'):
@@ -271,17 +255,40 @@ def drawText(image, text, x, y):
     # Draw the actual text
     draw.text((x, y), text,(255,255,255),font=labelFont)
 
+# Crop an image, preserving the aspect ratio.
+# Returns a crop of the image that fills maxWidth and maxHeight
+def cropToFill(image, maxWidth, maxHeight):
+    resizedImg = image.copy()
+    resizedImg.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
+    (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
+    if boxWidth < maxWidth:
+        # Black bars on the sides, clip vertically
+        proportionalHeight = int(maxHeight * (maxWidth / boxWidth))
+        heightGap = int((proportionalHeight - maxHeight) / 2)
+        if heightGap % 2 == 1:
+            heightGap -= 1
+        newImage = image.resize((maxWidth, proportionalHeight))
+        return newImage.crop((0, heightGap, maxWidth, maxHeight + heightGap))
+    elif boxHeight < maxHeight: 
+        # Black bars on the top/bottom, clip horizontally
+        proportionalWidth = int(maxWidth * (maxHeight / boxHeight))
+        widthGap = int((proportionalWidth - maxWidth) / 2)
+        if widthGap % 2 == 1:
+            widthGap -= 1
+        newImage = image.resize((proportionalWidth, maxHeight))
+        return newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
+
 # Merge two portrait images into a single image, side by side
-def twoPortraits(image, image2):
+def twoPortraits(image1, image2):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
-    newWidth, newHeight = image.size
-    bufferWidth, bufferHeight = image2.size
+    img1Width, img1Height = image1.size
+    img2Width, img2Height = image2.size
     twoPortraits = Image.new('RGB', (maxWidth, maxHeight))
-    img1XAnchor = int(((maxWidth / 2) - (bufferWidth)) / 2)
-    img2XAnchor = int(maxWidth/2) + int(((maxWidth / 2) - (newWidth)) / 2)
-    twoPortraits.paste(image2, (img1XAnchor, 0))
-    twoPortraits.paste(image, (img2XAnchor, 0))
+    img1XAnchor = int(((maxWidth / 2) - img2Width) / 2)
+    img2XAnchor = int(maxWidth/2) + int(((maxWidth / 2) - img1Width) / 2)
+    twoPortraits.paste(image1, (img1XAnchor, 0))
+    twoPortraits.paste(image2, (img2XAnchor, 0))
     return twoPortraits
 
 # Copy all files from the list to the target folder.
