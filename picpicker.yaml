@@ -22,7 +22,8 @@ sources:
     filePattern: '/**/*.jpg'
 
     # Any file/directory name containing the text indicated here 
-    # will be entirely excluded from the final selection
+    # will be entirely excluded from the final selection.
+    # Patterns are case sensitive.
     exclude: 
       - 'révéillon'
       - 'drunken karaoke'
@@ -31,6 +32,7 @@ sources:
     # (e.g. you want a maximum of 10 files from the 'baby pictures' folder)
     # indicate the number of files, or a percentage of the
     # total files, to include, alongside the directory name.
+    # Patterns are case sensitive.
     limit:
       - 1 'liquéur night'
       - 10 'baby-pictures'
@@ -38,7 +40,8 @@ sources:
 
     # To always pick a minimum of files from a directory,
     # indicate the number or percentage of files here.
-    # If you want all files from a directory, just use 100%.      
+    # If you want all files from a directory, just use 100%.
+    # Patterns are case sensitive.
     ensure:
       - 4 'séance centre'
       - 10 'Pumpkin farm visit'

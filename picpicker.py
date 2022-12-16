@@ -250,13 +250,7 @@ def getPreparedImage(sourceFile):
             portraitBuffer = image
             return None
         else:
-            bufferWidth, bufferHeight = portraitBuffer.size
-            twoPortraits = Image.new('RGB', (maxWidth, maxHeight))
-            img1XAnchor = int(((maxWidth / 2) - (bufferWidth)) / 2)
-            img2XAnchor = int(maxWidth/2) + int(((maxWidth / 2) - (newWidth)) / 2)
-            twoPortraits.paste(portraitBuffer, (img1XAnchor, 0))
-            twoPortraits.paste(image, (img2XAnchor, 0))
-            image = twoPortraits
+            image = twoPortraits(image.copy(), portraitBuffer)
             portraitBuffer = None        
     
     return image
@@ -276,6 +270,19 @@ def drawText(image, text, x, y):
     draw.text((x-1, y+1), text,(0,0,0),font=labelFont)
     # Draw the actual text
     draw.text((x, y), text,(255,255,255),font=labelFont)
+
+# Merge two portrait images into a single image, side by side
+def twoPortraits(image, image2):
+    maxWidth = int(target['maxWidth'])
+    maxHeight = int(target['maxHeight'])
+    newWidth, newHeight = image.size
+    bufferWidth, bufferHeight = image2.size
+    twoPortraits = Image.new('RGB', (maxWidth, maxHeight))
+    img1XAnchor = int(((maxWidth / 2) - (bufferWidth)) / 2)
+    img2XAnchor = int(maxWidth/2) + int(((maxWidth / 2) - (newWidth)) / 2)
+    twoPortraits.paste(image2, (img1XAnchor, 0))
+    twoPortraits.paste(image, (img2XAnchor, 0))
+    return twoPortraits
 
 # Copy all files from the list to the target folder.
 # The destination file names are randomized, and
