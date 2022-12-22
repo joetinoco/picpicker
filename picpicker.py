@@ -248,8 +248,8 @@ def getPreparedImage(sourceFile):
     return image
 
 # Draw text over an image
-def drawText(image, text, x, y):
-    labelFont = ImageFont.truetype("fonts/roboto-mono.ttf", 16)
+def drawText(image, text, x, y, fontSize=16):
+    labelFont = ImageFont.truetype("fonts/roboto-mono.ttf", fontSize)
     draw = ImageDraw.Draw(image)
     # Draw a 1px black shading around the text location
     draw.text((x+1, y), text,(0,0,0),font=labelFont)
@@ -322,7 +322,7 @@ def resizeAndCopyFiles(fileList):
                 return (0, 0)
 
             if optionalConfigSet('printFileName'):
-                drawText(image, targetFile, 3, 3)
+                drawText(image, targetFile.replace(target['path'], '')[1:], 3, 3, 11)
             
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
