@@ -7,9 +7,11 @@ sources = []
 target = {}
 crlfMissing = False # Used as a flag for logging
 portraitBuffer = None # Used by the `twoPortraits` flag
+byteCount = 0
+fileCount = 0
 
 ###########################
-## Internal functions
+## Functions
 
 # Simple logger
 def log(msg, *others):
@@ -45,7 +47,7 @@ def toMbString(bytes):
 
 # Return a random file name with the given extension
 def randomFileName(extension):
-    return '/' + str(random.randint(0,99999999)).zfill(8) + extension
+    return '/' + str(random.randint(0,99999999)).zfill(8) + extension.lower()
 
 # Matches a string against several patterns, returns True if it contains any of them
 def anyMatches(string, patterns):
@@ -61,12 +63,15 @@ def getLabelText(file):
         sourcePaths.append(sources[source]['path'])
     dirname = os.path.dirname(file)
     for path in sourcePaths:
+        normalizedPath = path.replace('\\', '/')
+        if normalizedPath[-1] != '/':
+            normalizedPath += '/'
         dirname = (
-            dirname.replace(path, '')
+            dirname.replace(normalizedPath, '')
             .replace('//', ' - ')
             .replace('/', ' - ')
             .replace('\\', ' - '))
-    return dirname[3:]
+    return dirname
 
 # Parse and validate configuration
 def parseConfig(configFilePath):
@@ -305,6 +310,7 @@ def twoPortraits(image1, image2, label1, label2):
 # Returns a tuple with the file count and the total bytes copied.
 def resizeAndCopyFiles(fileList):
     bytes = 0
+    files = 0
     for sourceFile in fileList:
         try:
             fileName, fileExt = os.path.splitext(sourceFile)
@@ -314,13 +320,18 @@ def resizeAndCopyFiles(fileList):
 
             if image == None: # This can happen if an image was stacked to be merged later, see code
                 return (0, 0)
+
+            if optionalConfigSet('printFileName'):
+                drawText(image, targetFile, 3, 3)
             
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
+            files += 1
             logProgress('Copied ' + sourceFile + ' to ' + targetFile)
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
-    return (1, bytes)
+            return (0, 0)
+    return (files, bytes)
 
 # Check if the amount of bytes is under the byte size cap for the target directory.
 # Always returns True if there's no cap.
@@ -345,7 +356,6 @@ if len(sys.argv) < 2:
     abort("Missing config file path. Usage: picpicker <config.yaml>")
 
 parseConfig(sys.argv[1])
-byteCount = 0
 
 if optionalConfigSet('wipeTarget'):
     log('Wiping target directory "', target['path'], '" before starting.')

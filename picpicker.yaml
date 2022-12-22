@@ -12,7 +12,7 @@ sources:
     # Specify the base path where your pictures are stored.
     # It can be in Windows or Unix format, and you can use 
     # forward slashes even on Windows.
-    path: 'D:/mypictures' 
+    path: 'D:\mypictures' 
     
     # File pattern accepts Globs, the extended Unix style 
     # pathname extension.
@@ -75,7 +75,7 @@ target:
 
   # Set how many megabytes of pictures you want selected here.
   # Useful when you have a limited capacity USB stick/SD card.
-  maxMegabytes: 100
+  maxMegabytes: 200
 
   # If you have too many pictures, or too much storage, you can
   # set a maximum amount of files to copy. 
@@ -92,3 +92,6 @@ target:
   # Wipe the target folder before starting.
   # Subdirectories (and files in them) are preserved.
   wipeTarget: True
+
+  # For debugging purposes - prints the file name in the picture
+  printFileName: False
