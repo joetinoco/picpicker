@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, os.path, yaml, re, random
+import datetime, sys, glob, re, os.path, yaml, re, random, traceback
 from PIL import Image, ImageOps, ImageFont, ImageDraw
 
 ###########################
@@ -128,10 +128,10 @@ def parseRule(ruleString):
     ruleParts = re.search('^([0-9]+%?)\s\'(.+)\'$', ruleString)
     if ruleParts:
         rule['count'] = ruleParts.group(1)
-        rule['pattern'] = ruleParts.group(2).encode('cp1252').decode('utf8') # Fix encoding
+        rule['pattern'] = ruleParts.group(2)
     else:
-        # No count on the rule - just fix the encoding on the string
-        rule['pattern'] = ruleString.encode('cp1252').decode('utf8')
+        # No count on the rule
+        rule['pattern'] = ruleString
     return rule
 
 # Pick a random item from a list and remove it from the list
@@ -226,8 +226,6 @@ def getPreparedImage(sourceFile):
         resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
         image = resizedImg # Defaults to "naive" resizing (assumes same aspect ratio of the picture frame)
 
-
-
     # The 'two portraits' functionality works like this:
     # First, a portrait image and its label is stored in the portraitBuffer, and
     # then, when a second one comes by, it's merged with the one previously
@@ -249,7 +247,9 @@ def getPreparedImage(sourceFile):
 
 # Draw text over an image
 def drawText(image, text, x, y, fontSize=16):
-    labelFont = ImageFont.truetype("fonts/roboto-mono.ttf", fontSize)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    font_path = os.path.join(script_dir, "fonts/roboto-mono.ttf")
+    labelFont = ImageFont.truetype(font_path, fontSize)
     draw = ImageDraw.Draw(image)
     # Draw a 1px black shading around the text location
     draw.text((x+1, y), text,(0,0,0),font=labelFont)
@@ -285,6 +285,9 @@ def cropToFill(image, maxWidth, maxHeight):
             widthGap -= 1
         newImage = image.resize((proportionalWidth, maxHeight))
         return newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
+    else:
+        # If neither condition is met, return the resized image
+        return resizedImg
 
 # Merge two portrait images into a single image, side by side
 def twoPortraits(image1, image2, label1, label2):
@@ -315,7 +318,7 @@ def resizeAndCopyFiles(fileList):
         try:
             fileName, fileExt = os.path.splitext(sourceFile)
             targetFile = target['path'] + randomFileName(fileExt)
-
+            sourceFile = f"""{sourceFile}""" # Wrap in quotes in case the path has spaces
             image = getPreparedImage(sourceFile)
 
             if image == None: # This can happen if an image was stacked to be merged later, see code
@@ -324,13 +327,15 @@ def resizeAndCopyFiles(fileList):
             if optionalConfigSet('printFileName'):
                 drawText(image, targetFile.replace(target['path'], '')[1:], 3, 3, 11)
             
+            targetFile = f"""{targetFile}""" # Wrap in quotes in case the path has spaces
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
             files += 1
             logProgress('Copied ' + sourceFile + ' to ' + targetFile)
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
-            return (0, 0)
+            traceback.print_exc()
+            exit(1)
     return (files, bytes)
 
 # Check if the amount of bytes is under the byte size cap for the target directory.
