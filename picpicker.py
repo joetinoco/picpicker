@@ -77,7 +77,7 @@ def getLabelText(file):
 def parseConfig(configFilePath):
     global sources
     global target
-    with open(configFilePath, "r") as configfile:
+    with open(configFilePath, "r", encoding="utf-8-sig") as configfile:
         try:
             config = yaml.safe_load(configfile)
             log('Using config file - ', configFilePath)
