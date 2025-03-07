@@ -7,6 +7,7 @@ sources = []
 target = {}
 crlfMissing = False # Used as a flag for logging
 portraitBuffer = None # Used by the `twoPortraits` flag
+labelFontSize = 16 # Default, can be overriden from the yaml config
 byteCount = 0
 fileCount = 0
 
@@ -240,16 +241,16 @@ def getPreparedImage(sourceFile):
             portraitBuffer = None
     else:
         if optionalConfigSet('applyLabel'):
-            newWidth, newHeight = image.size
-            drawText(image, getLabelText(sourceFile), 3, newHeight - 30)
+            _, newHeight = image.size
+            drawText(image, getLabelText(sourceFile), 3, newHeight - 14 - labelFontSize)
     
     return image
 
 # Draw text over an image
-def drawText(image, text, x, y, fontSize=16):
+def drawText(image, text, x, y):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     font_path = os.path.join(script_dir, "fonts/roboto-mono.ttf")
-    labelFont = ImageFont.truetype(font_path, fontSize)
+    labelFont = ImageFont.truetype(font_path, labelFontSize)
     draw = ImageDraw.Draw(image)
     # Draw a 1px black shading around the text location
     draw.text((x+1, y), text,(0,0,0),font=labelFont)
@@ -268,7 +269,31 @@ def drawText(image, text, x, y, fontSize=16):
 def cropToFill(image, maxWidth, maxHeight):
     resizedImg = image.copy()
     resizedImg.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
-    (top, left, boxWidth, boxHeight) = resizedImg.getbbox()
+    (_, _, boxWidth, boxHeight) = resizedImg.getbbox()
+    
+    if (boxWidth < maxWidth) and (boxHeight < maxHeight):
+        # Image is smaller than the box size, so expand it
+        # without messing up the aspect ratio
+        if boxWidth > boxHeight:
+            aspectRatio = boxWidth/boxHeight
+            landscape = True
+        elif boxHeight > boxWidth:
+            aspectRatio = boxHeight/boxWidth
+            landscape = False
+        else:
+            aspectRatio = 1 # Square image 
+            landscape = True # not really but yeah
+
+        (largerWidth, largerHeight) = (maxWidth, maxHeight)
+        if landscape:
+            largerHeight = int(largerWidth / aspectRatio)
+        else:
+            largerWidth = int(largerHeight / aspectRatio)
+        newImage = image.resize((largerWidth, largerHeight))
+        resizedImg = newImage
+        (_, _, boxWidth, boxHeight) = resizedImg.getbbox()
+
+
     if boxWidth < maxWidth:
         # Black bars on the sides, clip vertically
         proportionalHeight = int(maxHeight * (maxWidth / boxWidth))
@@ -286,7 +311,6 @@ def cropToFill(image, maxWidth, maxHeight):
         newImage = image.resize((proportionalWidth, maxHeight))
         return newImage.crop((widthGap, 0, maxWidth + widthGap, maxHeight))
     else:
-        # If neither condition is met, return the resized image
         return resizedImg
 
 # Merge two portrait images into a single image, side by side
@@ -299,8 +323,8 @@ def twoPortraits(image1, image2, label1, label2):
     img2crop = cropToFill(image2, int((maxWidth/2) - (dividerWidth/2)), maxHeight)
 
     if optionalConfigSet('applyLabel'):
-        drawText(img1crop, label1, 3, maxHeight - 30)
-        drawText(img2crop, label2, 3, maxHeight - 30)
+        drawText(img1crop, label1, 3, maxHeight - 14 - labelFontSize)
+        drawText(img2crop, label2, 3, maxHeight - 14 - labelFontSize)
 
     twoPortraits = Image.new('RGB', (maxWidth, maxHeight))
     twoPortraits.paste(img1crop, (0, 0))
@@ -325,7 +349,7 @@ def resizeAndCopyFiles(fileList):
                 return (0, 0)
 
             if optionalConfigSet('printFileName'):
-                drawText(image, targetFile.replace(target['path'], '')[1:], 3, 3, 11)
+                drawText(image, targetFile.replace(target['path'], '')[1:], 3, 3)
             
             targetFile = f"""{targetFile}""" # Wrap in quotes in case the path has spaces
             image.save(targetFile)
@@ -361,6 +385,9 @@ if len(sys.argv) < 2:
     abort("Missing config file path. Usage: picpicker <config.yaml>")
 
 parseConfig(sys.argv[1])
+
+if optionalConfigSet('labelFontSize'):
+    labelFontSize = int(target['labelFontSize'])
 
 if optionalConfigSet('wipeTarget'):
     log('Wiping target directory "', target['path'], '" before starting.')

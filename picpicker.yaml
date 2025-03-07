@@ -88,6 +88,8 @@ target:
   # labeled "Vacation - Paris 2022".
   # Note that the source base path is not included.
   applyLabel: True
+  # Font size for the label
+  labelFontSize: 24
 
   # Wipe the target folder before starting.
   # Subdirectories (and files in them) are preserved.
