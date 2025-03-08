@@ -1,5 +1,5 @@
 import datetime, sys, glob, re, os.path, yaml, re, random, traceback
-from PIL import Image, ImageOps, ImageFont, ImageDraw
+from PIL import Image, ImageOps, ImageFont, ImageDraw, ImageEnhance
 
 ###########################
 ## Globals
@@ -32,7 +32,14 @@ def log(msg, *others):
 def logProgress(msg):
     global crlfMissing
     crlfMissing = True
-    fillSize = os.get_terminal_size().columns - 28 - len(str(msg))
+    try:
+        fillSize = os.get_terminal_size().columns - 28 - len(str(msg))
+    except OSError:
+        # Print normally and return.
+        # This happens when you're debugging on VScode's debug console, which it's not a terminal so .get_terminal_size() fails
+        crlfMissing = False
+        print(datetime.datetime.now(), str(msg))
+        return
     filler = ' ' * fillSize
     print(datetime.datetime.now(), str(msg), end=filler + '\r')
         
@@ -171,8 +178,8 @@ def pickRequired(eligibleFiles, ensureRules):
     pickedFiles = []
     for ruleString in ensureRules:
         rule = parseRule(ruleString)
-        log('Ensuring at least ', rule['count'], ' files that match pattern "', rule['pattern'], '"')
         pickedFiles += pickByRule(eligibleFiles, rule)
+        log('Ensuring at least ', rule['count'], ' files that match pattern "', rule['pattern'], '" - ', len(pickedFiles), ' files selected.')
     return pickedFiles    
     
 # Get all eligible files from a path
@@ -207,7 +214,7 @@ def applyLimits(fileList, limitRules):
         log('Limiting to a maximum of ', len(limitedPicks), ' files matching pattern "', rule['pattern'], '"')
 
 # Get the source image with the size according to any aspect ratio/sizing constraints
-# and with label text applied, if the user wants any.
+# and with other user options applied (labels, e-ink optimization, etc).
 # Returns an image, or "None" if the `twoPortraits` flag is selected and an image was instead stacked inside (see code).
 def getPreparedImage(sourceFile):
     maxWidth = int(target['maxWidth'])
@@ -226,6 +233,11 @@ def getPreparedImage(sourceFile):
         resizedImg = image.copy()
         resizedImg.thumbnail((maxWidth, maxHeight)) # Preserves aspect ratio
         image = resizedImg # Defaults to "naive" resizing (assumes same aspect ratio of the picture frame)
+
+    if optionalConfigSet('eInkOptimize'):
+        grayscaleImg = ImageOps.grayscale(image)
+        contrastImg = ImageEnhance.Contrast(grayscaleImg).enhance(1.5)
+        image = ImageEnhance.Brightness(contrastImg).enhance(1.2)
 
     # The 'two portraits' functionality works like this:
     # First, a portrait image and its label is stored in the portraitBuffer, and
@@ -252,17 +264,22 @@ def drawText(image, text, x, y):
     font_path = os.path.join(script_dir, "fonts/roboto-mono.ttf")
     labelFont = ImageFont.truetype(font_path, labelFontSize)
     draw = ImageDraw.Draw(image)
+
+    (colorBlack, colorWhite) = ((0,0,0), (255,255,255))
+    if optionalConfigSet('eInkOptimize'):
+        (colorBlack, colorWhite) = (0, 255)
+    
     # Draw a 1px black shading around the text location
-    draw.text((x+1, y), text,(0,0,0),font=labelFont)
-    draw.text((x-1, y), text,(0,0,0),font=labelFont)
-    draw.text((x, y+1), text,(0,0,0),font=labelFont)
-    draw.text((x, y-1), text,(0,0,0),font=labelFont)
-    draw.text((x+1, y+1), text,(0,0,0),font=labelFont)
-    draw.text((x-1, y-1), text,(0,0,0),font=labelFont)
-    draw.text((x+1, y-1), text,(0,0,0),font=labelFont)
-    draw.text((x-1, y+1), text,(0,0,0),font=labelFont)
+    draw.text((x+1, y), text,colorBlack,font=labelFont)
+    draw.text((x-1, y), text,colorBlack,font=labelFont)
+    draw.text((x, y+1), text,colorBlack,font=labelFont)
+    draw.text((x, y-1), text,colorBlack,font=labelFont)
+    draw.text((x+1, y+1), text,colorBlack,font=labelFont)
+    draw.text((x-1, y-1), text,colorBlack,font=labelFont)
+    draw.text((x+1, y-1), text,colorBlack,font=labelFont)
+    draw.text((x-1, y+1), text,colorBlack,font=labelFont)
     # Draw the actual text
-    draw.text((x, y), text,(255,255,255),font=labelFont)
+    draw.text((x, y), text,colorWhite,font=labelFont)
 
 # Crop an image, preserving the aspect ratio.
 # Returns a crop of the image that fills maxWidth and maxHeight
@@ -340,13 +357,18 @@ def resizeAndCopyFiles(fileList):
     files = 0
     for sourceFile in fileList:
         try:
-            fileName, fileExt = os.path.splitext(sourceFile)
+            _, fileExt = os.path.splitext(sourceFile)
             targetFile = target['path'] + randomFileName(fileExt)
             sourceFile = f"""{sourceFile}""" # Wrap in quotes in case the path has spaces
-            image = getPreparedImage(sourceFile)
+            try:
+                image = getPreparedImage(sourceFile)
+            except Exception:
+                log('Error preparing image ', sourceFile)
+                print(traceback.format_exc())
+                continue
 
             if image == None: # This can happen if an image was stacked to be merged later, see code
-                return (0, 0)
+                continue
 
             if optionalConfigSet('printFileName'):
                 drawText(image, targetFile.replace(target['path'], '')[1:], 3, 3)
@@ -396,6 +418,8 @@ if optionalConfigSet('wipeTarget'):
 
 # Process sources
 for sourceName in sources:
+    byteCount = 0
+    fileCount = 0
     log('Processing source: ', sourceName)
     source = sources[sourceName]
 
@@ -410,22 +434,27 @@ for sourceName in sources:
     requiredFiles = pickRequired(availableFiles, source['ensure'])
     log('Remaining files available to be picked: ', len(availableFiles))
 
-    (fileCount, byteCount) = resizeAndCopyFiles(requiredFiles)
-    log('Included a total of ', fileCount, ' required files (', toMbString(byteCount),').')
-
-if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
-    log('Warning: required files already exceed the limits set for the target directory.')
-else:
-    log('Filling the rest of the target folder with random picks.')
-    if 'maxMegabytes' in target.keys():
-        log('Will copy up to ', target['maxMegabytes'], ' MB.')
-    if 'maxFiles' in target.keys():
-        log('Will copy up to ', target['maxFiles'], ' files.')        
-    while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
-        if len(availableFiles) == 0:
-            break
-        (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(availableFiles)])
+    while len(requiredFiles) > 0:
+        (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(requiredFiles)])
         fileCount += addedFiles
         byteCount += addedBytes
+        if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
+            log('Warning: required files already exceed the limits set for the target directory.')
+            break
+
+    log('Included a total of ', fileCount, ' required files (', toMbString(byteCount),').')
+
+    if (isUnderByteSizeCap(byteCount) == True) and (isUnderFileCountCap(fileCount) == True):
+        log('Filling the rest of the target folder with random picks.')
+        if 'maxMegabytes' in target.keys():
+            log('Will copy up to ', target['maxMegabytes'], ' MB.')
+        if 'maxFiles' in target.keys():
+            log('Will copy up to ', target['maxFiles'], ' files.')        
+        while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
+            if len(availableFiles) == 0:
+                break
+            (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(availableFiles)])
+            fileCount += addedFiles
+            byteCount += addedBytes
     
 log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')
