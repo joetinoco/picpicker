@@ -91,6 +91,9 @@ target:
   # Font size for the label
   labelFontSize: 24
 
+  # E-ink display mode: converts to grayscale and enhance contrast/brightness
+  eInkOptimize: True
+
   # Wipe the target folder before starting.
   # Subdirectories (and files in them) are preserved.
   wipeTarget: True
