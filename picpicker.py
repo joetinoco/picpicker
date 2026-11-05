@@ -222,6 +222,12 @@ def getPreparedImage(sourceFile):
     global portraitBuffer
     image = ImageOps.exif_transpose(Image.open(sourceFile))
 
+    # Normalize the color mode up front. Source files can be grayscale ('L'),
+    # palette ('P'), 1-bit, CMYK, etc., which breaks drawing RGB color tuples.
+    # (eInkOptimize converts to grayscale itself further down.)
+    if not optionalConfigSet('eInkOptimize'):
+        image = image.convert('RGB')
+
     # Get current image size and orientation
     currWidth, currHeight = image.size
     portrait = (currWidth < currHeight)
@@ -244,18 +250,21 @@ def getPreparedImage(sourceFile):
     # then, when a second one comes by, it's merged with the one previously
     # stored.
     if portrait & optionalConfigSet('twoPortraits'):
-        if portraitBuffer == None:
+        if portraitBuffer is None:
             portraitBuffer = (image, getLabelText(sourceFile))
             return None
         else:
             (secondImage, secondLabel) = portraitBuffer
-            image = twoPortraits(image.copy(), secondImage, getLabelText(sourceFile), secondLabel)
+            # Clear the buffer *before* merging, so a failure here can't leave
+            # a bad image stuck in the buffer and break every later pairing.
             portraitBuffer = None
+            image = twoPortraits(image.copy(), secondImage, getLabelText(sourceFile), secondLabel)
+
     else:
         if optionalConfigSet('applyLabel'):
             _, newHeight = image.size
             drawText(image, getLabelText(sourceFile), 3, newHeight - 14 - labelFontSize)
-    
+
     return image
 
 # Draw text over an image
@@ -265,21 +274,18 @@ def drawText(image, text, x, y):
     labelFont = ImageFont.truetype(font_path, labelFontSize)
     draw = ImageDraw.Draw(image)
 
-    (colorBlack, colorWhite) = ((0,0,0), (255,255,255))
-    if optionalConfigSet('eInkOptimize'):
+    # Pick colors that match the image's mode: tuples for RGB(A), ints for
+    # single-channel modes like 'L'.
+    if image.mode in ('RGB', 'RGBA'):
+        (colorBlack, colorWhite) = ((0,0,0), (255,255,255))
+    else:
         (colorBlack, colorWhite) = (0, 255)
-    
+
     # Draw a 1px black shading around the text location
-    draw.text((x+1, y), text,colorBlack,font=labelFont)
-    draw.text((x-1, y), text,colorBlack,font=labelFont)
-    draw.text((x, y+1), text,colorBlack,font=labelFont)
-    draw.text((x, y-1), text,colorBlack,font=labelFont)
-    draw.text((x+1, y+1), text,colorBlack,font=labelFont)
-    draw.text((x-1, y-1), text,colorBlack,font=labelFont)
-    draw.text((x+1, y-1), text,colorBlack,font=labelFont)
-    draw.text((x-1, y+1), text,colorBlack,font=labelFont)
+    for dx, dy in [(1,0), (-1,0), (0,1), (0,-1), (1,1), (-1,-1), (1,-1), (-1,1)]:
+        draw.text((x+dx, y+dy), text, colorBlack, font=labelFont)
     # Draw the actual text
-    draw.text((x, y), text,colorWhite,font=labelFont)
+    draw.text((x, y), text, colorWhite, font=labelFont)
 
 # Crop an image, preserving the aspect ratio.
 # Returns a crop of the image that fills maxWidth and maxHeight

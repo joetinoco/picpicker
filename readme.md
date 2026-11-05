@@ -14,7 +14,14 @@ Features:
 ## Pre-requisites
 
 - Instal Python 3
-- Install required packages via `pip`
+- Install required packages via `pip`. 
+
+On WSL/bash:
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+```
 
 ## Configuration file
 
@@ -22,7 +29,7 @@ PicPicker expects a configuration file in yaml format, with at least one source 
 
 ## Running the script
 
-Simply run it with `python picpicker.py <your_config.yml>`
+Simply run it with `python3 picpicker.py <your_config.yml>`
 
 ## Limitations, TODOs
 
