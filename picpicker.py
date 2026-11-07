@@ -216,7 +216,7 @@ def applyLimits(fileList, limitRules):
 # Get the source image with the size according to any aspect ratio/sizing constraints
 # and with other user options applied (labels, e-ink optimization, etc).
 # Returns an image, or "None" if the `twoPortraits` flag is selected and an image was instead stacked inside (see code).
-def getPreparedImage(sourceFile):
+def prepareOrStackImage(sourceFile):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
     global portraitBuffer
@@ -367,7 +367,7 @@ def resizeAndCopyFiles(fileList):
             targetFile = target['path'] + randomFileName(fileExt)
             sourceFile = f"""{sourceFile}""" # Wrap in quotes in case the path has spaces
             try:
-                image = getPreparedImage(sourceFile)
+                image = prepareOrStackImage(sourceFile)
             except Exception:
                 log('Error preparing image ', sourceFile)
                 print(traceback.format_exc())
