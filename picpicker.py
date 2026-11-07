@@ -64,7 +64,8 @@ def anyMatches(string, patterns):
             return True
     return False    
 
-# Derives a label text from a file path
+# Derives a label text from a file path,
+# and applies text substitutions, if specified.
 def getLabelText(file):
     sourcePaths = []
     for source in sources:
@@ -79,6 +80,16 @@ def getLabelText(file):
             .replace('//', ' - ')
             .replace('/', ' - ')
             .replace('\\', ' - '))
+
+    # Apply text substitutions, if provided
+    substitutions = optionalConfigSet('labelTextSubstitutions')
+    if substitutions:
+        if isinstance(substitutions, str):
+            substitutions = [substitutions]  # If only a single value was provided
+        for substitution in substitutions:
+            text, separator, replacement = str(substitution).partition('/')
+            if separator and text:
+                dirname = dirname.replace(text, replacement)
     return dirname
 
 # Parse and validate configuration

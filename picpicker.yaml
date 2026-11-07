@@ -90,6 +90,11 @@ target:
   applyLabel: True
   # Font size for the label
   labelFontSize: 24
+  # Any text substitutions you want applied to the labels,
+  # in the format 'text/replacement'. Case sensitive.
+  labelTextSubstitutions:
+    - 'Constantinople/Istambul'
+    - 'Walter Carlos/Wendy Carlos'
 
   # E-ink display mode: converts to grayscale and enhance contrast/brightness
   eInkOptimize: True
