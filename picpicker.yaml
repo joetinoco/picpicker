@@ -17,9 +17,9 @@ sources:
     # File pattern accepts Globs, the extended Unix style 
     # pathname extension.
     # Reference: https://www.malikbrowne.com/blog/a-beginners-guide-glob-patterns
-    # Patterns are applied recursively, i.e. the example below picks
-    # all JPG files in all directories and every subdirectory
-    filePattern: '/**/*.jpg'
+    # Patterns are case-insensitive and applied recursively, i.e. the example below picks
+    # all JPG and JPEG files in all directories and every subdirectory
+    filePattern: '/**/*.jp*g'
 
     # Any file/directory name containing the text indicated here 
     # will be entirely excluded from the final selection.

@@ -193,10 +193,27 @@ def pickRequired(eligibleFiles, ensureRules):
         log('Ensuring at least ', rule['count'], ' files that match pattern "', rule['pattern'], '" - ', len(pickedFiles), ' files selected.')
     return pickedFiles    
     
+# Replace each glob letter with a character class: '*.jpg' -> '*.[jJ][pP][gG]'
+def caseInsensitiveGlob(pattern):
+    result = []
+    inBracket = False
+    for ch in pattern:
+        if ch == '[':
+            inBracket = True
+            result.append(ch)
+        elif ch == ']' and inBracket:
+            inBracket = False
+            result.append(ch)
+        elif ch.isalpha() and not inBracket:
+            result.append('[' + ch.lower() + ch.upper() + ']')
+        else:
+            result.append(ch)
+    return ''.join(result)
+
 # Get all eligible files from a path
 def collectAvailableFiles(path, selector):
     log('Scanning source path: ', path + selector)
-    availableFilesIterator = glob.iglob(path + selector, recursive=True)
+    availableFilesIterator = glob.iglob(path + caseInsensitiveGlob(selector), recursive=True)
     availableFiles = []
     for filePath in availableFilesIterator:
         availableFiles.append(filePath.replace('\\', '/'))
