@@ -257,6 +257,7 @@ def applyLimits(fileList, limitRules):
 # and with other user options applied (labels, e-ink optimization, etc).
 # Returns a tuple (image, sourceCount). Image can be "None" and count 0 if the `twoPortraits` flag is
 # selected and an image was instead stacked inside (see code). The count is 2 if two portraits were merged.
+# Note that this means the program may end with an unstacked image in portraitBuffer; we're accepting that.
 def prepareOrStackImage(sourceFile):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
@@ -529,8 +530,5 @@ fileCount = 0
 byteCount = 0
 for sourceName, source in sources.items():
     (fileCount, byteCount) = processSource(sourceName, source, fileCount, byteCount)
-
-if portraitBuffer is not None:
-    log('Warning: one portrait image was left unpaired and was not copied.')
 
 log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')
