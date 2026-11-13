@@ -512,22 +512,22 @@ for sourceName in sources:
         if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
             log('Warning: required files already exceed the limits set for the target directory.')
             break
-
-    # cheating a bit here for cases where `twoPortraits` causes a required image to remain stacked
-    # and the final required file copy count ends up one short of the total
-    printProgressBar(1, 1, 1, 1)
+    else:
+        # cheating a bit here for cases where `twoPortraits` causes a required image to remain stacked
+        # and the final required file copy count ends up one short of the total
+        printProgressBar(1, 1, 1, 1)
+    
 
     log('Included a total of ', fileCount, ' required files (', toMbString(byteCount),').')
-    log('Remaining files available to be picked: ', len(availableFiles))
-    
-    # Recalculate file count caps, because the list of files we'll work with now is different
-    maxFileCount = len(availableFiles)
-    if ('maxFiles' in target.keys()) and (maxFileCount > target['maxFiles']):
-        log('Will copy up to ', target['maxFiles'], ' files only.')
-        maxFileCount = target['maxFiles']
 
     if (isUnderByteSizeCap(byteCount) == True) and (isUnderFileCountCap(fileCount) == True):
-        log('Filling the rest of the target folder with random picks.')
+        log('Remaining files available to be picked: ', len(availableFiles))
+
+        # Recalculate file count caps, because the list of files we'll work with now is different
+        maxFileCount = len(availableFiles)
+        if ('maxFiles' in target.keys()) and (maxFileCount > target['maxFiles']):
+            log('Will copy up to ', target['maxFiles'], ' files only.')
+            maxFileCount = target['maxFiles']
   
         while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
             if len(availableFiles) == 0:
