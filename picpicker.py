@@ -42,6 +42,29 @@ def logProgress(msg):
         return
     filler = ' ' * fillSize
     print(datetime.datetime.now(), str(msg), end=filler + '\r')
+
+# Prints a progress bar for the file copy.
+def printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount):
+    barSize = 65 # characters
+
+    # Progress can be based on file counts (where we know the end value) or bytes copied (where we normally don't,
+    # unless the config includes a `maxMegabytes` cap), so we only calculate percent complete for bytes if there's a max,
+    # and do some more trickery to present only the bar most likely to conclude first.
+    percentFiles = fileCount / maxFileCount
+    if (maxByteCount is None):
+        percentBytes = 0
+    else:        
+        percentBytes = byteCount / maxByteCount
+    if (percentBytes > percentFiles):
+        percent = percentBytes
+    else:
+        percent = percentFiles
+    
+    if (percent > 1): # naive fix for rounding errors
+        percent = 1
+    filled = '#' * int(percent * barSize)
+    empty = '·' * (barSize - int(percent * barSize))
+    logProgress('%.2f%% complete [%s%s]' %(percent * 100, filled, empty))
         
 # Log an error and quit program
 def abort(msg, *others):
@@ -189,8 +212,9 @@ def pickRequired(eligibleFiles, ensureRules):
     pickedFiles = []
     for ruleString in ensureRules:
         rule = parseRule(ruleString)
-        pickedFiles += pickByRule(eligibleFiles, rule)
-        log('Ensuring at least ', rule['count'], ' files that match pattern "', rule['pattern'], '" - ', len(pickedFiles), ' files selected.')
+        pickedFiles.extend(pickByRule(eligibleFiles, rule))
+        log('Ensuring ', rule['count'], ' files that match pattern "', rule['pattern'], '" are included.')
+    log(f'{len(pickedFiles)} required files selected.')
     return pickedFiles    
     
 # Replace each glob letter with a character class: '*.jpg' -> '*.[jJ][pP][gG]'
@@ -243,7 +267,8 @@ def applyLimits(fileList, limitRules):
 
 # Get the source image with the size according to any aspect ratio/sizing constraints
 # and with other user options applied (labels, e-ink optimization, etc).
-# Returns an image, or "None" if the `twoPortraits` flag is selected and an image was instead stacked inside (see code).
+# Returns a tuple (image, sourceCount). Image can be "None" and count 0 if the `twoPortraits` flag is
+# selected and an image was instead stacked inside (see code).
 def prepareOrStackImage(sourceFile):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
@@ -280,20 +305,20 @@ def prepareOrStackImage(sourceFile):
     if portrait & optionalConfigSet('twoPortraits'):
         if portraitBuffer is None:
             portraitBuffer = (image, getLabelText(sourceFile))
-            return None
+            return (None, 0)
         else:
             (secondImage, secondLabel) = portraitBuffer
             # Clear the buffer *before* merging, so a failure here can't leave
             # a bad image stuck in the buffer and break every later pairing.
             portraitBuffer = None
             image = twoPortraits(image.copy(), secondImage, getLabelText(sourceFile), secondLabel)
-
+            return (image, 2)
     else:
         if optionalConfigSet('applyLabel'):
             _, newHeight = image.size
             drawText(image, getLabelText(sourceFile), 3, newHeight - 14 - labelFontSize)
 
-    return image
+    return (image, 1)
 
 # Draw text over an image
 def drawText(image, text, x, y):
@@ -395,13 +420,13 @@ def resizeAndCopyFiles(fileList):
             targetFile = target['path'] + randomFileName(fileExt)
             sourceFile = f"""{sourceFile}""" # Wrap in quotes in case the path has spaces
             try:
-                image = prepareOrStackImage(sourceFile)
+                (image, imageCount) = prepareOrStackImage(sourceFile)
             except Exception:
                 log('Error preparing image ', sourceFile)
                 print(traceback.format_exc())
                 continue
 
-            if image == None: # This can happen if an image was stacked to be merged later, see code
+            if image is None: # This can happen if an image was stacked to be merged later, see code
                 continue
 
             if optionalConfigSet('printFileName'):
@@ -410,8 +435,7 @@ def resizeAndCopyFiles(fileList):
             targetFile = f"""{targetFile}""" # Wrap in quotes in case the path has spaces
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
-            files += 1
-            logProgress('Copied ' + sourceFile + ' to ' + targetFile)
+            files += imageCount
         except Exception as ex:
             log('Error copying ', sourceFile,' - ', str(ex))
             traceback.print_exc()
@@ -466,29 +490,52 @@ for sourceName in sources:
     applyLimits(availableFiles, source['limit'])
 
     requiredFiles = pickRequired(availableFiles, source['ensure'])
-    log('Remaining files available to be picked: ', len(availableFiles))
+
+    # Figure out caps (if any) and apply them
+    maxByteCount = None        
+    if 'maxMegabytes' in target.keys():
+        log('Will copy up to ', target['maxMegabytes'], ' MB.')
+        maxByteCount = target['maxMegabytes'] * 1024 * 1024
+
+    maxFileCount = len(requiredFiles)
+    if ('maxFiles' in target.keys()) and (maxFileCount > target['maxFiles']):
+        log('Will copy up to ', target['maxFiles'], ' files only.')
+        maxFileCount = target['maxFiles']
+    
 
     while len(requiredFiles) > 0:
         (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(requiredFiles)])
         fileCount += addedFiles
         byteCount += addedBytes
+        printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount)
+
         if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
             log('Warning: required files already exceed the limits set for the target directory.')
             break
 
+    # cheating a bit here for cases where `twoPortraits` causes a required image to remain stacked
+    # and the final required file copy count ends up one short of the total
+    printProgressBar(1, 1, 1, 1)
+
     log('Included a total of ', fileCount, ' required files (', toMbString(byteCount),').')
+    log('Remaining files available to be picked: ', len(availableFiles))
+    
+    # Recalculate file count caps, because the list of files we'll work with now is different
+    maxFileCount = len(availableFiles)
+    if ('maxFiles' in target.keys()) and (maxFileCount > target['maxFiles']):
+        log('Will copy up to ', target['maxFiles'], ' files only.')
+        maxFileCount = target['maxFiles']
 
     if (isUnderByteSizeCap(byteCount) == True) and (isUnderFileCountCap(fileCount) == True):
         log('Filling the rest of the target folder with random picks.')
-        if 'maxMegabytes' in target.keys():
-            log('Will copy up to ', target['maxMegabytes'], ' MB.')
-        if 'maxFiles' in target.keys():
-            log('Will copy up to ', target['maxFiles'], ' files.')        
+  
         while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
             if len(availableFiles) == 0:
                 break
             (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(availableFiles)])
             fileCount += addedFiles
             byteCount += addedBytes
+            printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount)
+            
     
 log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')
