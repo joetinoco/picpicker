@@ -2,14 +2,16 @@
 
 Got one of those digital picture frames, but don't want to go through all your gigabytes of pictures to make a selection for it? Let PicPicker do it for you automagically.
 
+PicPicker generates a randomized selection of your pictures, resized for your picture frame resolution, and ready for copying to a USB drive or SD card. Your originals are left untouched.
+
 Features:
-- Automatically resize pictures to your picture frame resolution, preserving the original aspect ratio
-- Auto-picks as many pictures as your target USB drive/SD card can fit
-- Randomize file names (and display order)
-- Specify files/directories to ignore
-- Specify files/directories to always include
-- Limit the amount of files picked from specific directories - if you have baby pictures you know how important this is
-- Embed (optional) text onto pictures from the file location e.g. files from `/vacation/paris 2022` will be labeled "vacation - paris 2022"
+- Resized images preserve the original aspect ratio
+- Display more than one image at once by joining portrait images side-by-side
+- Limit selection size and/or amount of files to fit your storage limits.
+- Images can be optimized for monochrome e-ink displays (like old e-readers)
+- Specify files/directories to ignore or always include
+- Limit the amount of files picked from specific directories (if you have baby pictures you know how important this is)
+- Embed (optional, adjustable) text onto pictures from the file location e.g. files from `/vacation/paris 2022` will be labeled "vacation - paris 2022".
 
 ## Pre-requisites
 

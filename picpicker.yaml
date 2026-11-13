@@ -1,21 +1,22 @@
-# PicPicker accepts one or more sources
-# i.e. places where you have pictures you want to
-# include in your selection.
-#
-# All params are mandatory unless stated otherwise.
-# They can be blank/empty, but must be specified.
+# All params are optional unless stated otherwise.
+
+# You will need to specify at least one source here.
 sources:
-  
-  # Give each source a name
-  'My Pictures':
-    
-    # Specify the base path where your pictures are stored.
-    # It can be in Windows or Unix format, and you can use 
+
+  # Sources are places where you have pictures you want to
+  # include in your selection.  
+  # Each source needs a name and a path.
+  'Camera backup':
+    # Path can be in Windows or Unix format, and you can use 
     # forward slashes even on Windows.
-    path: 'D:\mypictures' 
+    path: 'C:/Users/Joe/Data/Backups/Sony/'
+  
+  # A source can have the selection fine-tuned and filtered, like the example below
+  'Family Pictures':
+    path: 'D:\pictures\family' 
     
-    # File pattern accepts Globs, the extended Unix style 
-    # pathname extension.
+    # You can pick file names based on a pattern.
+    # File patterns accept Globs, the extended Unix style pathname extension.
     # Reference: https://www.malikbrowne.com/blog/a-beginners-guide-glob-patterns
     # Patterns are case-insensitive and applied recursively, i.e. the example below picks
     # all JPG and JPEG files in all directories and every subdirectory
@@ -48,7 +49,7 @@ sources:
       - 100% 'secret-santa'
 
 # Target is the destination directory where your picks
-# will be copied to.
+# from all sources will be copied to.
 # All file names WILL be changed to a random number; this
 # is to ensure pictures are always shown in a random order
 target:
