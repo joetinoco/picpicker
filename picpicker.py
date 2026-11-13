@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, os.path, yaml, re, random, traceback
+import datetime, sys, glob, re, os.path, yaml, random, traceback
 from PIL import Image, ImageOps, ImageFont, ImageDraw, ImageEnhance
 
 ###########################
@@ -8,8 +8,6 @@ target = {}
 crlfMissing = False # Used as a flag for logging
 portraitBuffer = None # Used by the `twoPortraits` flag
 labelFontSize = 16 # Default, can be overriden from the yaml config
-byteCount = 0
-fileCount = 0
 
 ###########################
 ## Functions
@@ -44,28 +42,18 @@ def logProgress(msg):
     print(datetime.datetime.now(), str(msg), end=filler + '\r')
 
 # Prints a progress bar for the file copy.
-def printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount):
-    barSize = 65 # characters
+def printProgressBar(filesDone, bytesDone, maxFiles, maxBytes, barSize=65):
+    # Progress can be based on file counts (where we know the end value) or bytes copied
+    # (where we only know the end value if the config includes a `maxMegabytes` cap).
+    # We use the one most likely to conclude first.
+    percentFiles = filesDone / maxFiles if maxFiles else 0
+    percentBytes = bytesDone / maxBytes if maxBytes else 0
+    percent = min(1, max(percentFiles, percentBytes)) # clamped to absorb rounding errors
 
-    # Progress can be based on file counts (where we know the end value) or bytes copied (where we normally don't,
-    # unless the config includes a `maxMegabytes` cap), so we only calculate percent complete for bytes if there's a max,
-    # and do some more trickery to present only the bar most likely to conclude first.
-    percentFiles = fileCount / maxFileCount
-    if (maxByteCount is None):
-        percentBytes = 0
-    else:        
-        percentBytes = byteCount / maxByteCount
-    if (percentBytes > percentFiles):
-        percent = percentBytes
-    else:
-        percent = percentFiles
-    
-    if (percent > 1): # naive fix for rounding errors
-        percent = 1
-    filled = '#' * int(percent * barSize)
-    empty = '·' * (barSize - int(percent * barSize))
-    logProgress('%.2f%% complete [%s%s]' %(percent * 100, filled, empty))
-        
+    filledSize = int(percent * barSize)
+    bar = '#' * filledSize + '·' * (barSize - filledSize)
+    logProgress(f'{percent * 100:.2f}% complete [{bar}]')
+
 # Log an error and quit program
 def abort(msg, *others):
     log(msg, others)
@@ -85,7 +73,7 @@ def anyMatches(string, patterns):
     for pattern in patterns:
         if pattern in string:
             return True
-    return False    
+    return False
 
 # Derives a label text from a file path,
 # and applies text substitutions, if specified.
@@ -126,10 +114,10 @@ def parseConfig(configFilePath):
         except yaml.YAMLError as exc:
             abort('Error loading config file.', exc)
 
-    # Validate target    
+    # Validate target
     if 'target' not in config.keys():
         abort("Config file has no 'target' specified.")
-    
+
     target = config['target']
     if 'path' not in target.keys():
         abort('Target configs are missing a destination path.')
@@ -151,7 +139,7 @@ def optionalConfigSet(name):
         return False
 
 # Calculate an absolute count of files to be picked,
-# by parsing/validating a string and then applying 
+# by parsing/validating a string and then applying
 # the value or percentage to a total amount.
 # Returns -1 if the amount cannot be calculated.
 def parsePickCountString(amountString, available):
@@ -167,7 +155,7 @@ def parsePickCountString(amountString, available):
 # where <number> can be an absolute amount (2, 7, etc.) or a percentage
 def parseRule(ruleString):
     rule = {}
-    ruleParts = re.search('^([0-9]+%?)\s\'(.+)\'$', ruleString)
+    ruleParts = re.search(r'^([0-9]+%?)\s\'(.+)\'$', ruleString)
     if ruleParts:
         rule['count'] = ruleParts.group(1)
         rule['pattern'] = ruleParts.group(2)
@@ -204,7 +192,7 @@ def pickByRule(eligibleFiles, rule):
             pickCount -= 1
         for pickedFile in pickedFiles:
             eligibleFiles.remove(pickedFile)
-  
+
     return pickedFiles
 
 # Return all files matching the "ensure" rules
@@ -215,8 +203,8 @@ def pickRequired(eligibleFiles, ensureRules):
         pickedFiles.extend(pickByRule(eligibleFiles, rule))
         log('Ensuring ', rule['count'], ' files that match pattern "', rule['pattern'], '" are included.')
     log(f'{len(pickedFiles)} required files selected.')
-    return pickedFiles    
-    
+    return pickedFiles
+
 # Replace each glob letter with a character class: '*.jpg' -> '*.[jJ][pP][gG]'
 def caseInsensitiveGlob(pattern):
     result = []
@@ -268,7 +256,7 @@ def applyLimits(fileList, limitRules):
 # Get the source image with the size according to any aspect ratio/sizing constraints
 # and with other user options applied (labels, e-ink optimization, etc).
 # Returns a tuple (image, sourceCount). Image can be "None" and count 0 if the `twoPortraits` flag is
-# selected and an image was instead stacked inside (see code).
+# selected and an image was instead stacked inside (see code). The count is 2 if two portraits were merged.
 def prepareOrStackImage(sourceFile):
     maxWidth = int(target['maxWidth'])
     maxHeight = int(target['maxHeight'])
@@ -346,7 +334,7 @@ def cropToFill(image, maxWidth, maxHeight):
     resizedImg = image.copy()
     resizedImg.thumbnail((maxWidth, maxHeight)) # Resizes preserving aspect ratio
     (_, _, boxWidth, boxHeight) = resizedImg.getbbox()
-    
+
     if (boxWidth < maxWidth) and (boxHeight < maxHeight):
         # Image is smaller than the box size, so expand it
         # without messing up the aspect ratio
@@ -357,7 +345,7 @@ def cropToFill(image, maxWidth, maxHeight):
             aspectRatio = boxHeight/boxWidth
             landscape = False
         else:
-            aspectRatio = 1 # Square image 
+            aspectRatio = 1 # Square image
             landscape = True # not really but yeah
 
         (largerWidth, largerHeight) = (maxWidth, maxHeight)
@@ -378,7 +366,7 @@ def cropToFill(image, maxWidth, maxHeight):
             heightGap -= 1
         newImage = image.resize((maxWidth, proportionalHeight))
         return newImage.crop((0, heightGap, maxWidth, maxHeight + heightGap))
-    elif boxHeight < maxHeight: 
+    elif boxHeight < maxHeight:
         # Black bars on the top/bottom, clip horizontally
         proportionalWidth = int(maxWidth * (maxHeight / boxHeight))
         widthGap = int((proportionalWidth - maxWidth) / 2)
@@ -410,7 +398,8 @@ def twoPortraits(image1, image2, label1, label2):
 # Copy all files from the list to the target folder.
 # The destination file names are randomized, and
 # the files are resized to the desired resolution.
-# Returns a tuple with the file count and the total bytes copied.
+# Returns a tuple with the number of source images copied and the total bytes copied.
+# (With `twoPortraits`, two source images can end up in a single file.)
 def resizeAndCopyFiles(fileList):
     bytes = 0
     files = 0
@@ -431,7 +420,7 @@ def resizeAndCopyFiles(fileList):
 
             if optionalConfigSet('printFileName'):
                 drawText(image, targetFile.replace(target['path'], '')[1:], 3, 3)
-            
+
             targetFile = f"""{targetFile}""" # Wrap in quotes in case the path has spaces
             image.save(targetFile)
             bytes += os.stat(targetFile).st_size
@@ -457,6 +446,62 @@ def isUnderFileCountCap(fileCount):
         return True
     return fileCount < target['maxFiles']
 
+# Expected number of files after processing `pending` more, limited by the `maxFiles` cap (if any).
+# Used as the end value for the progress bar.
+def expectedFileTotal(copiedSoFar, pending):
+    total = copiedSoFar + pending
+    if 'maxFiles' in target.keys():
+        total = min(total, target['maxFiles'])
+    return total
+
+# Copy randomly picked files from the list until it's empty or the target caps are reached.
+# Returns the updated (fileCount, byteCount).
+def copyRandomPicks(fileList, fileCount, byteCount, maxFileCount, maxByteCount):
+    while fileList and isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
+        (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(fileList)])
+        fileCount += addedFiles
+        byteCount += addedBytes
+        printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount)
+    return (fileCount, byteCount)
+
+# Process one source: collect, filter, copy required files, then fill with random picks.
+# Takes and returns the running (fileCount, byteCount) totals for the whole target.
+def processSource(sourceName, source, fileCount, byteCount):
+    log('Processing source: ', sourceName)
+    startFiles, startBytes = fileCount, byteCount
+
+    availableFiles = collectAvailableFiles(source['path'], source['filePattern'])
+    log('Potential file count: ', len(availableFiles))
+
+    excludedCount = applyExcludes(availableFiles, source.get('exclude') or [])
+    log('Excluded ', excludedCount, ' files via exclusion patterns.')
+
+    applyLimits(availableFiles, source.get('limit') or [])
+    requiredFiles = pickRequired(availableFiles, source.get('ensure') or [])
+
+    maxByteCount = target['maxMegabytes'] * 1024 * 1024 if 'maxMegabytes' in target.keys() else None
+
+    # Required files
+    if requiredFiles:
+        total = expectedFileTotal(fileCount, len(requiredFiles))
+        (fileCount, byteCount) = copyRandomPicks(requiredFiles, fileCount, byteCount, total, maxByteCount)
+        if requiredFiles:
+            log('Warning: required files exceed the limits set for the target directory; ',
+                len(requiredFiles), ' of them were not copied.')
+        else:
+            # `twoPortraits` can leave a required image stacked, making the count one short
+            printProgressBar(1, 1, 1, 1)
+    log('Included a total of ', fileCount - startFiles, ' required files (', toMbString(byteCount - startBytes), ').')
+
+    # Fill the rest with random picks
+    if availableFiles and isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
+        log('Remaining files available to be picked: ', len(availableFiles))
+        total = expectedFileTotal(fileCount, len(availableFiles))
+        (fileCount, byteCount) = copyRandomPicks(availableFiles, fileCount, byteCount, total, maxByteCount)
+
+    log('Source "', sourceName, '" done: ', fileCount - startFiles, ' files (', toMbString(byteCount - startBytes), ').')
+    return (fileCount, byteCount)
+
 ################################################################################
 ################################################################################
 ################################################################################
@@ -474,68 +519,18 @@ if optionalConfigSet('wipeTarget'):
     for file in glob.glob(target['path'] + '/*'):
         os.remove(file)
 
+if 'maxMegabytes' in target.keys():
+    log('Will copy up to ', target['maxMegabytes'], ' MB.')
+if 'maxFiles' in target.keys():
+    log('Will copy up to ', target['maxFiles'], ' files.')
+
 # Process sources
-for sourceName in sources:
-    byteCount = 0
-    fileCount = 0
-    log('Processing source: ', sourceName)
-    source = sources[sourceName]
+fileCount = 0
+byteCount = 0
+for sourceName, source in sources.items():
+    (fileCount, byteCount) = processSource(sourceName, source, fileCount, byteCount)
 
-    availableFiles = collectAvailableFiles(source['path'], source['filePattern'])
-    log('Potential file count: ', len(availableFiles))
+if portraitBuffer is not None:
+    log('Warning: one portrait image was left unpaired and was not copied.')
 
-    excludedCount = applyExcludes(availableFiles, source['exclude'])
-    log('Excluded ', excludedCount, ' files via exclusion patterns.')
-
-    applyLimits(availableFiles, source['limit'])
-
-    requiredFiles = pickRequired(availableFiles, source['ensure'])
-
-    # Figure out caps (if any) and apply them
-    maxByteCount = None        
-    if 'maxMegabytes' in target.keys():
-        log('Will copy up to ', target['maxMegabytes'], ' MB.')
-        maxByteCount = target['maxMegabytes'] * 1024 * 1024
-
-    maxFileCount = len(requiredFiles)
-    if ('maxFiles' in target.keys()) and (maxFileCount > target['maxFiles']):
-        log('Will copy up to ', target['maxFiles'], ' files only.')
-        maxFileCount = target['maxFiles']
-    
-
-    while len(requiredFiles) > 0:
-        (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(requiredFiles)])
-        fileCount += addedFiles
-        byteCount += addedBytes
-        printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount)
-
-        if (isUnderByteSizeCap(byteCount) == False) or (isUnderFileCountCap(fileCount) == False):
-            log('Warning: required files already exceed the limits set for the target directory.')
-            break
-    else:
-        # cheating a bit here for cases where `twoPortraits` causes a required image to remain stacked
-        # and the final required file copy count ends up one short of the total
-        printProgressBar(1, 1, 1, 1)
-    
-
-    log('Included a total of ', fileCount, ' required files (', toMbString(byteCount),').')
-
-    if (isUnderByteSizeCap(byteCount) == True) and (isUnderFileCountCap(fileCount) == True):
-        log('Remaining files available to be picked: ', len(availableFiles))
-
-        # Recalculate file count caps, because the list of files we'll work with now is different
-        maxFileCount = len(availableFiles)
-        if ('maxFiles' in target.keys()) and (maxFileCount > target['maxFiles']):
-            log('Will copy up to ', target['maxFiles'], ' files only.')
-            maxFileCount = target['maxFiles']
-  
-        while isUnderByteSizeCap(byteCount) and isUnderFileCountCap(fileCount):
-            if len(availableFiles) == 0:
-                break
-            (addedFiles, addedBytes) = resizeAndCopyFiles([randomPickFrom(availableFiles)])
-            fileCount += addedFiles
-            byteCount += addedBytes
-            printProgressBar(fileCount, byteCount, maxFileCount, maxByteCount)
-            
-    
 log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')
