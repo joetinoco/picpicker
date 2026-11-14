@@ -25,6 +25,8 @@ source .venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
+On Windows' `cmd` shell use `.venv\Scripts\activate.bat` to activate your virtual env instead.
+
 ## Configuration file
 
 PicPicker expects a configuration file in yaml format, with at least one source directory to pick pictures and a target to put the result. Refer to [picpicker.yaml](picpicker.yaml) for a documented example of all possible options and create your own.

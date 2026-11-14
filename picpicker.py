@@ -375,7 +375,7 @@ def drawText(image, text, x, y):
         (colorBlack, colorWhite) = (0, 255)
 
     # White text with a black border
-    borderSize = max(1, labelFontSize // 20) # about 1/20th of the text size
+    borderSize = max(1, labelFontSize // 15)
     draw.text((x, y), text, colorWhite, font=labelFont,
               stroke_width=borderSize, stroke_fill=colorBlack)
 
