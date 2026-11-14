@@ -97,12 +97,16 @@ target:
     - 'Constantinople/Istambul'
     - 'Walter Carlos/Wendy Carlos'
 
-  # E-ink display mode: converts to grayscale and enhance contrast/brightness
+  # E-ink display optimizations: converts to grayscale and enhance contrast/brightness
   eInkOptimize: True
 
   # Wipe the target folder before starting.
   # Subdirectories (and files in them) are preserved.
   wipeTarget: True
+
+  # PicPicker silently skips images it can't process (corrupt files, etc).
+  # Set this to 'True' to have it write an `_errors.json` file instead.
+  saveErrors: True
 
   # For debugging purposes - prints the file name in the picture
   printFileName: False

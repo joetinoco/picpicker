@@ -1,3 +1,4 @@
 .vscode
 ffmpeg/*
 _temp
+_errors.json

@@ -1,4 +1,4 @@
-import datetime, sys, glob, re, os.path, yaml, random, traceback
+import datetime, sys, glob, re, os.path, yaml, random, traceback, json
 from PIL import Image, ImageOps, ImageFont, ImageDraw, ImageEnhance
 
 ###########################
@@ -8,7 +8,7 @@ target = {}
 crlfMissing = False # Used as a flag for logging
 portraitBuffer = None # Used by the `twoPortraits` flag
 labelFontSize = 16 # Default, can be overriden from the yaml config
-
+errors = []
 ###########################
 ## Functions
 
@@ -411,9 +411,10 @@ def resizeAndCopyFiles(fileList):
             sourceFile = f"""{sourceFile}""" # Wrap in quotes in case the path has spaces
             try:
                 (image, imageCount) = prepareOrStackImage(sourceFile)
-            except Exception:
-                log('Error preparing image ', sourceFile)
-                print(traceback.format_exc())
+            except Exception as e:
+                # Save error and skip image
+                errors.append(str(e))
+                files += 1 # this preserves the total processing count which the progress bars depend on
                 continue
 
             if image is None: # This can happen if an image was stacked to be merged later, see code
@@ -427,9 +428,10 @@ def resizeAndCopyFiles(fileList):
             bytes += os.stat(targetFile).st_size
             files += imageCount
         except Exception as ex:
+            # OS issues (disk full, etc), so log it and exit
             log('Error copying ', sourceFile,' - ', str(ex))
             traceback.print_exc()
-            exit(1)
+            sys.exit(1)
     return (files, bytes)
 
 # Check if the amount of bytes is under the byte size cap for the target directory.
@@ -531,4 +533,9 @@ byteCount = 0
 for sourceName, source in sources.items():
     (fileCount, byteCount) = processSource(sourceName, source, fileCount, byteCount)
 
-log('Finished: copied a total of ', fileCount, ' files (', toMbString(byteCount), ')')
+# Save errors to file, if configured to do so
+if optionalConfigSet('saveErrors'):
+    with open("_errors.json", "w") as f:
+        json.dump(errors, f)
+
+log(f'Finished: processed {fileCount} files ({toMbString(byteCount)}) - {len(errors)} error(s).')
