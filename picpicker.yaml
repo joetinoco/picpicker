@@ -108,5 +108,9 @@ target:
   # Set this to 'True' to have it write an `_errors.json` file instead.
   saveErrors: True
 
+  # PicPicker picks (hehe) between 1 and 4 worker threads depending on how many 
+  # CPUs you have, but you can override this value here.
+  workers: 8
+
   # For debugging purposes - prints the file name in the picture
   printFileName: False
